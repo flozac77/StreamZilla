@@ -1,12 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Header
+from fastapi import APIRouter, Depends, HTTPException, Request, Header, Query
 from fastapi.responses import RedirectResponse
 from cachetools import TTLCache, cached
-from typing import Optional
+from typing import Optional, List
 import logging
 
 from ..config import settings
 from ..services.twitch_service import TwitchService
-from ..models.twitch import TwitchUser, TwitchToken
+from ..models.twitch import TwitchUser, TwitchToken, TwitchVideo, TwitchGame, TwitchSearchResult
 
 # Configure logger for debugging
 logging.basicConfig(level=logging.DEBUG)
@@ -98,25 +98,36 @@ async def get_stream_key(user_id: Optional[str] = None, token: str = Depends(get
         logger.error(f"Error in get_stream_key: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/user/find")
-async def find_user_by_login(login: str, token: str = Depends(get_token), service: TwitchService = Depends(get_twitch_service)):
-    """Trouve un utilisateur Twitch par son nom de login"""
+@router.get("/search", response_model=TwitchSearchResult)
+async def search_videos_by_game(
+    game_name: str,
+    limit: int = Query(20, ge=1, le=100),
+    use_cache: bool = Query(True),
+    token: str = Depends(get_token),
+    service: TwitchService = Depends(get_twitch_service)
+):
+    """
+    Recherche des vidéos en fonction d'un jeu.
+    
+    - **game_name**: Nom du jeu à rechercher
+    - **limit**: Nombre maximum de vidéos à retourner (1-100, défaut: 20)
+    - **use_cache**: Utiliser le cache si disponible (défaut: True)
+    
+    Le résultat est mis en cache pendant 2 minutes pour optimiser les performances.
+    """
     try:
-        logger.debug(f"Searching for user with login: {login}")
-        user = await service.get_user_by_login(login, token)
+        logger.debug(f"Searching videos for game: {game_name} (limit: {limit}, use_cache: {use_cache})")
         
-        if not user:
-            raise HTTPException(status_code=404, detail=f"Streamer '{login}' not found")
+        result = await service.search_videos_by_game(
+            game_name=game_name,
+            token=token,
+            limit=limit,
+            use_cache=use_cache
+        )
         
-        logger.debug(f"User found: {user}")
-        return {
-            "id": user.id,
-            "login": user.login,
-            "display_name": user.display_name,
-            "profile_image_url": user.profile_image_url
-        }
-    except HTTPException:
-        raise
+        logger.debug(f"Search completed for game: {game_name}, found {len(result.videos)} videos")
+        return result
+        
     except Exception as e:
-        logger.error(f"Error in find_user_by_login: {str(e)}")
+        logger.error(f"Error searching videos for game {game_name}: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))

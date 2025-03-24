@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 class TwitchUser(BaseModel):
     id: str
@@ -30,4 +30,14 @@ class TwitchVideo(BaseModel):
     view_count: int
     language: str
     type: str
-    duration: str 
+    duration: str
+
+class TwitchGame(BaseModel):
+    id: str
+    name: str
+    box_art_url: str
+
+class TwitchSearchResult(BaseModel):
+    game: TwitchGame
+    videos: List[TwitchVideo]
+    last_updated: str 

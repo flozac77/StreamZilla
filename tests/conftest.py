@@ -31,12 +31,16 @@ async def test_db():
     # Clean database at the beginning of the test
     await db.users.delete_many({})
     await db.tokens.delete_many({})
+    await db.games.delete_many({})
+    await db.search_cache.delete_many({})
     
     yield db
     
     # Clean database at the end of the test
     await db.users.delete_many({})
     await db.tokens.delete_many({})
+    await db.games.delete_many({})
+    await db.search_cache.delete_many({})
     client.close()
     logger.debug("Test database connection closed")
 
@@ -68,4 +72,57 @@ def mock_twitch_token():
         "expires_in": 3600,
         "scope": ["user:read:email"],
         "token_type": "bearer"
+    }
+
+@pytest.fixture
+def mock_twitch_game():
+    """Return a mock game response."""
+    return {
+        "data": [{
+            "id": "12345",
+            "name": "Test Game",
+            "box_art_url": "https://example.com/game.jpg"
+        }]
+    }
+
+@pytest.fixture
+def mock_twitch_videos():
+    """Return a mock videos response."""
+    return {
+        "data": [
+            {
+                "id": "123456789",
+                "user_id": "54321",
+                "user_login": "test_user",
+                "user_name": "Test User",
+                "title": "Test Video 1",
+                "description": "A test video",
+                "created_at": "2023-01-01T00:00:00Z",
+                "published_at": "2023-01-01T00:00:00Z",
+                "url": "https://twitch.tv/videos/123456789",
+                "thumbnail_url": "https://example.com/thumbnail1.jpg",
+                "viewable": "public",
+                "view_count": 100,
+                "language": "en",
+                "type": "archive",
+                "duration": "1h30m"
+            },
+            {
+                "id": "987654321",
+                "user_id": "54321",
+                "user_login": "test_user2",
+                "user_name": "Test User 2",
+                "title": "Test Video 2",
+                "description": "Another test video",
+                "created_at": "2023-01-02T00:00:00Z",
+                "published_at": "2023-01-02T00:00:00Z",
+                "url": "https://twitch.tv/videos/987654321",
+                "thumbnail_url": "https://example.com/thumbnail2.jpg",
+                "viewable": "public",
+                "view_count": 200,
+                "language": "en",
+                "type": "archive",
+                "duration": "2h45m"
+            }
+        ]
     } 
