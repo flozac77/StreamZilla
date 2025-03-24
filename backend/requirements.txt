@@ -1,0 +1,5 @@
+fastapi
+httpx
+pymongo
+dotenv
+fastapi-cache2
