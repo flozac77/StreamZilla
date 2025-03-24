@@ -1,0 +1,53 @@
+# Environnements virtuels
+venv-py311/
+.venv-py311/
+env/
+.env/
+
+# Fichiers Python compilés
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Fichiers cachés (à l'exception de ceux explicitement autorisés)
+.*
+!.gitignore
+!.env.example
+!.editorconfig
+
+# Secrets et fichiers de config sensibles
+.env
+*.key
+*.pem
+*.crt
+secrets.*
+config.yaml
+*.db
+*.sqlite3
+
+# Fichiers de logs et caches
+*.log
+*.tmp
+*.bak
+*.swp
+.cache/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs / éditeurs
+.vscode/
+.idea/
+*.code-workspace
+
+# Test / coverage
+.coverage
+htmlcov/
+.tox/
+.nox/
+pytest_cache/
+coverage.xml
+.qodo
