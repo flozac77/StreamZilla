@@ -1,6 +1,6 @@
-# VisioBrain - Explorateur de Vidéos Twitch
+# VisiBrain - Explorateur de Vidéos Twitch
 
-VisioBrain est une application web permettant de rechercher et visualiser des vidéos Twitch par jeu. Elle utilise l'API Twitch pour récupérer les vidéos et offre une interface moderne et réactive.
+VisiBrain est une application web permettant de rechercher et visualiser des vidéos Twitch par jeu. Elle utilise l'API Twitch pour récupérer les vidéos et offre une interface moderne et réactive.
 
 ## 🚀 Démarrage Rapide
 
