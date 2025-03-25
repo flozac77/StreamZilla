@@ -8,10 +8,9 @@ export default {
     extend: {
       colors: {
         'twitch': {
-          'purple': '#9146FF',
-          'dark': '#0E0E10',
-          'light': '#18181B',
-          'text': '#EFEFF1'
+          'purple': '#9147ff',
+          'dark': '#0e0e10',
+          'text': '#efeff1',
         }
       },
       animation: {

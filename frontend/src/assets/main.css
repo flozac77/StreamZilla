@@ -4,17 +4,17 @@
 
 @layer base {
   body {
-    @apply bg-twitch-dark text-twitch-text;
+    @apply bg-gray-900 m-0 p-0;
   }
 }
 
 @layer components {
   .btn {
-    @apply px-4 py-2 rounded-md transition-colors;
+    @apply px-4 py-2 rounded-md transition-colors duration-200;
   }
 
   .btn-primary {
-    @apply bg-twitch-purple text-white hover:bg-opacity-90;
+    @apply bg-purple-600 text-white hover:bg-purple-700;
   }
 
   .btn-error {
@@ -23,14 +23,15 @@
 }
 
 /* Animations */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
+.notification-enter-active,
+.notification-leave-active {
+  transition: all 0.3s ease;
 }
 
-.fade-enter-from,
-.fade-leave-to {
+.notification-enter-from,
+.notification-leave-to {
   opacity: 0;
+  transform: translateX(30px);
 }
 
 /* Scrollbar personnalisée */
