@@ -12,7 +12,7 @@ export const useVideoStore = defineStore('video', {
   }),
 
   actions: {
-    async searchVideos(query, reset = true) {
+    async searchVideos({ game_name, limit = 10, page = 1 }) {
       if (reset) {
         this.videos = []
         this.page = 1
@@ -23,18 +23,18 @@ export const useVideoStore = defineStore('video', {
       this.error = null
       
       try {
-        const response = await axios.get(`/api/twitch/search`, {
+        const response = await axios.get(`/api/search`, {
           params: {
-            game_name: query,
-            limit: 10,
-            page: this.page
+            game_name,
+            limit,
+            use_cache: true
           }
         })
         
         const newVideos = response.data.videos || []
         this.videos = reset ? newVideos : [...this.videos, ...newVideos]
         this.hasMore = newVideos.length === 10
-        this.currentSearch = query
+        this.currentSearch = game_name
         
       } catch (error) {
         this.error = error.response?.data?.detail || 'Une erreur est survenue'

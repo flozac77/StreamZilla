@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import api from '../config/api'
 
 interface Video {
   id: string
@@ -18,13 +18,15 @@ interface Video {
   duration: string
 }
 
+interface Game {
+  id: string
+  name: string
+  box_art_url: string
+}
+
 interface SearchResponse {
   game_name: string
-  game: {
-    id: string
-    name: string
-    box_art_url: string
-  }
+  game: Game
   videos: Video[]
   last_updated: string
 }
@@ -42,11 +44,20 @@ export const useVideoStore = defineStore('video', {
       this.loading = true
       this.error = null
       try {
-        const response = await axios.get<SearchResponse>(`${import.meta.env.VITE_API_URL}/api/videos/${game}`)
+        console.log(`Recherche des vidéos pour le jeu: ${game}`)
+        const response = await api.get<SearchResponse>(`/api/search`, {
+          params: {
+            game_name: game,
+            limit: 10,
+            use_cache: true
+          }
+        })
+        console.log('Réponse reçue:', response.data)
         this.videos = response.data.videos
         this.currentGame = game
         return response.data
       } catch (error) {
+        console.error('Erreur lors de la recherche:', error)
         this.error = "Erreur lors de la recherche des vidéos"
         throw error
       } finally {

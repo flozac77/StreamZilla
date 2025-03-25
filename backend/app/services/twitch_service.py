@@ -2,10 +2,13 @@ from typing import Optional, Dict, Any, List
 import httpx
 from backend.app.config import settings
 from backend.app.models.twitch import TwitchUser, TwitchToken, TwitchVideo, TwitchGame, TwitchSearchResult
-from backend.app.repositories.twitch_repository import TwitchRepository
+from backend.app.repositories.token_repository import TokenRepository
+from backend.app.services.twitch.auth import TwitchAuthService
 import inspect
 from datetime import datetime
 import logging
+from functools import lru_cache
+from cachetools import TTLCache
 
 # Configure logger for debugging
 logging.basicConfig(level=logging.DEBUG)
@@ -13,16 +16,30 @@ logger = logging.getLogger(__name__)
 
 class TwitchService:
     def __init__(self):
-        self.repository = TwitchRepository()
         self.client = httpx.AsyncClient()
         self.base_url = "https://api.twitch.tv/helix"
         self.auth_url = "https://id.twitch.tv/oauth2"
         self.client_id = settings.TWITCH_CLIENT_ID
+        self.auth_service = None
+        # Cache en mémoire pour le dev
+        self.cache = TTLCache(maxsize=settings.CACHE_MAX_SIZE, ttl=settings.CACHE_TTL)
+
+    async def _get_auth_service(self) -> TwitchAuthService:
+        """
+        Lazy initialization of auth service to avoid circular imports
+        """
+        if not self.auth_service:
+            from backend.app.dependencies import get_db
+            db = await get_db()  # Await la coroutine get_db()
+            token_repository = TokenRepository(db)
+            self.auth_service = TwitchAuthService(token_repository)
+        return self.auth_service
 
     async def close(self):
         """Close the service resources"""
         await self.client.aclose()
-        self.repository.close()
+        if self.auth_service:
+            await self.auth_service.close()
 
     async def get_auth_url(self) -> str:
         """Generate Twitch OAuth URL"""
@@ -93,35 +110,37 @@ class TwitchService:
 
     async def get_game_by_name(self, game_name: str, auth_token: str) -> Optional[TwitchGame]:
         """Recherche un jeu par son nom."""
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{self.base_url}/games",
-                params={"name": game_name},
-                headers={
-                    "Authorization": f"Bearer {auth_token}",
-                    "Client-Id": self.client_id
-                }
-            )
-            response.raise_for_status()
-            data = response.json()
-            if not data["data"]:
-                return None
-            return TwitchGame(**data["data"][0])
+        headers = {
+            "Client-Id": self.client_id,
+            "Authorization": f"Bearer {auth_token}"
+        }
+        
+        response = await self.client.get(
+            f"{self.base_url}/games",
+            params={"name": game_name},
+            headers=headers
+        )
+        response.raise_for_status()
+        data = response.json()
+        if not data["data"]:
+            return None
+        return TwitchGame(**data["data"][0])
 
     async def get_videos_by_game_id(self, game_id: str, auth_token: str) -> List[TwitchVideo]:
         """Récupère les vidéos pour un jeu spécifique."""
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{self.base_url}/videos",
-                params={"game_id": game_id},
-                headers={
-                    "Authorization": f"Bearer {auth_token}",
-                    "Client-Id": self.client_id
-                }
-            )
-            response.raise_for_status()
-            data = response.json()
-            return [TwitchVideo(**video) for video in data["data"]]
+        headers = {
+            "Client-Id": self.client_id,
+            "Authorization": f"Bearer {auth_token}"
+        }
+        
+        response = await self.client.get(
+            f"{self.base_url}/videos",
+            params={"game_id": game_id},
+            headers=headers
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [TwitchVideo(**video) for video in data["data"]]
 
     async def search_videos_by_game(
         self,
@@ -132,16 +151,13 @@ class TwitchService:
     ) -> TwitchSearchResult:
         """Search videos by game name with caching"""
         try:
-            # En développement, utiliser le cache en mémoire
-            if settings.ENVIRONMENT == "dev":
-                cache_key = f"game_search:{game_name}:{limit}"
-                if use_cache and cache_key in twitch_cache:
-                    logger.debug(f"Cache hit for game search: {game_name}")
-                    return twitch_cache[cache_key]
+            # Obtenir le service d'auth et un token valide
+            auth_service = await self._get_auth_service()
+            token = await auth_service.get_valid_token()
 
             # Si pas de cache ou pas de jeu fourni, chercher le jeu
             if not game:
-                game = await self.get_game_by_name(game_name)
+                game = await self.get_game_by_name(game_name, token.access_token)
                 if not game:
                     logger.warning(f"Game not found: {game_name}")
                     return TwitchSearchResult(
@@ -152,20 +168,15 @@ class TwitchService:
                     )
 
             # Récupérer les vidéos
-            videos = await self.get_videos_by_game_id(game.id, limit=limit)
+            videos = await self.get_videos_by_game_id(game.id, token.access_token)
             
             # Créer le résultat
             result = TwitchSearchResult(
                 game_name=game_name,
                 game=game,
-                videos=videos,
+                videos=videos[:limit],  # Limiter le nombre de vidéos
                 last_updated=datetime.utcnow()
             )
-
-            # En développement, mettre en cache en mémoire
-            if settings.ENVIRONMENT == "dev" and use_cache:
-                twitch_cache[cache_key] = result
-                logger.debug(f"Cached game search result for: {game_name}")
 
             return result
 

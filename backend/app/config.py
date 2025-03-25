@@ -1,29 +1,41 @@
 import os
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+from typing import Optional
 
 class Settings(BaseSettings):
     """Configuration settings for the application."""
     ENVIRONMENT: str = "dev"
+    DEBUG: bool = True
     TWITCH_CLIENT_ID: str
     TWITCH_CLIENT_SECRET: str
     TWITCH_REDIRECT_URI: str
     MONGODB_URL: str = "mongodb://localhost:27017"
-    MONGODB_DB_NAME: str = "dbTwitch"
+    MONGODB_DB_NAME: str = "visibrain"
     REDIS_URL: str = "redis://localhost:6379"
     SESSION_SECRET_KEY: str = "your-secret-key-here"  # À remplacer en production
+    CACHE_TTL: int = 3600  # 1 hour
+    CACHE_MAX_SIZE: int = 100
+    RATE_LIMIT_CALLS: int = 30
+    RATE_LIMIT_PERIOD: int = 60  # seconds
 
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        case_sensitive = True
 
 class DevSettings(Settings):
     """Development settings."""
     ENVIRONMENT: str = "dev"
     TWITCH_CLIENT_ID: str = "wbkcxez0h72vcd7rmcj3i5rlle78k9"
-    TWITCH_CLIENT_SECRET: str = "your-client-secret"
+    TWITCH_CLIENT_SECRET: str = "t9ne77q37hd31z7yguatgob49prhxv"
+    # ngrok uniquement pour le callback Twitch
     TWITCH_REDIRECT_URI: str = "https://dd9e-2001-861-49c3-9eb0-4ce7-58da-632d-8062.ngrok-free.app/callback"
+    MONGODB_URL: str = "mongodb://localhost:27017"
+    MONGODB_DB_NAME: str = "visibrain"
+    REDIS_URL: str = "redis://localhost:6379"
     SESSION_SECRET_KEY: str = "dev-secret-key"
+    API_URL: str = "http://localhost:8000"  # URL locale pour l'API
 
 class TestSettings(Settings):
     """Test settings."""
@@ -50,7 +62,7 @@ class ProdSettings(Settings):
 @lru_cache()
 def get_settings() -> Settings:
     """Get the appropriate settings based on the environment."""
-    env = os.getenv("ENVIRONMENT", "dev")
+    env = os.getenv("ENV", "dev")
     settings_map = {
         "dev": DevSettings,
         "test": TestSettings,
