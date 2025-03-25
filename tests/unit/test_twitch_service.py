@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import patch, AsyncMock, MagicMock, Mock
 from backend.app.services.twitch_service import TwitchService
 from backend.app.models.twitch import TwitchUser, TwitchToken, TwitchGame, TwitchVideo, TwitchSearchResult
 from datetime import datetime
@@ -50,7 +50,8 @@ mock_videos_data = [
 @pytest.fixture
 def twitch_service():
     """Create a TwitchService instance for testing"""
-    return TwitchService()
+    service = TwitchService()
+    return service
 
 @pytest.mark.asyncio
 async def test_get_auth_url(twitch_service):
@@ -79,60 +80,87 @@ async def test_exchange_code_for_token():
     assert token_data.token_type == "bearer"
 
 @pytest.mark.asyncio
-async def test_get_user_info():
-    """Test retrieving Twitch user information."""
-    twitch_service = TwitchService()
-    
-    # Create a simple mock for httpx.AsyncClient.get
-    get_response = MagicMock()
-    get_response.json.return_value = {"data": [mock_user_data]}
-    
-    # Patch the get method
-    with patch("httpx.AsyncClient.get", return_value=get_response):
+async def test_get_user_info(twitch_service):
+    """Test la récupération des informations d'un utilisateur"""
+    mock_response = Mock()
+    mock_response.json.return_value = {
+        "data": [{
+            "id": "12345",
+            "login": "test_user",
+            "display_name": "Test User",
+            "type": "user",
+            "broadcaster_type": "partner",
+            "description": "Test description",
+            "profile_image_url": "https://example.com/image.jpg",
+            "offline_image_url": "https://example.com/offline.jpg",
+            "view_count": 1000,
+            "email": "test@example.com",
+            "created_at": "2023-01-01T00:00:00Z"
+        }]
+    }
+    mock_response.raise_for_status = Mock()
+
+    with patch("httpx.AsyncClient.get", return_value=mock_response):
         user_info = await twitch_service.get_user_info("test_token")
-    
-    # Verify that the result is correct
-    assert isinstance(user_info, TwitchUser)
-    assert user_info.id == "12345"
-    assert user_info.display_name == "Test User"
+        assert isinstance(user_info, TwitchUser)
+        assert user_info.id == "12345"
+        assert user_info.login == "test_user"
+        assert user_info.display_name == "Test User"
+        assert user_info.type == "user"
+        assert user_info.broadcaster_type == "partner"
+        assert user_info.description == "Test description"
+        assert user_info.profile_image_url == "https://example.com/image.jpg"
+        assert user_info.offline_image_url == "https://example.com/offline.jpg"
+        assert user_info.view_count == 1000
+        assert user_info.email == "test@example.com"
+        assert isinstance(user_info.created_at, datetime)
 
 @pytest.mark.asyncio
-async def test_get_user_videos():
-    """Test retrieving videos for a Twitch user."""
-    twitch_service = TwitchService()
-    
-    # Create a simple mock for httpx.AsyncClient.get
-    get_response = MagicMock()
-    get_response.json.return_value = {"data": mock_videos_data}
-    
-    # Patch the get method
-    with patch("httpx.AsyncClient.get", return_value=get_response):
-        videos = await twitch_service.get_user_videos("12345", "test_token")
-    
-    # Verify that the result is correct
-    assert isinstance(videos, list)
-    assert len(videos) == 1
-    assert videos[0]["id"] == "123456789"
-    assert videos[0]["title"] == "Test Video"
+async def test_get_user_videos(twitch_service):
+    """Test la récupération des vidéos d'un utilisateur"""
+    mock_response = Mock()
+    mock_response.json.return_value = {
+        "data": [{
+            "id": "123456789",
+            "user_id": "987654321",
+            "user_login": "testuser",
+            "user_name": "Test User",
+            "title": "Test Video",
+            "description": "Test Description",
+            "created_at": "2024-03-25T08:00:00Z",
+            "published_at": "2024-03-25T08:00:00Z",
+            "url": "https://twitch.tv/videos/123456789",
+            "thumbnail_url": "https://test.com/thumb.jpg",
+            "viewable": "public",
+            "view_count": 100,
+            "language": "en",
+            "type": "archive",
+            "duration": "1h2m3s"
+        }]
+    }
+    mock_response.raise_for_status = Mock()
+
+    with patch("httpx.AsyncClient.get", return_value=mock_response):
+        videos = await twitch_service.get_user_videos("987654321", "test_token")
+        assert len(videos) == 1
+        assert isinstance(videos[0], TwitchVideo)
+        assert videos[0].id == "123456789"
+        assert videos[0].user_id == "987654321"
 
 @pytest.mark.asyncio
-async def test_get_stream_key():
-    """Test retrieving stream key for a Twitch user."""
-    twitch_service = TwitchService()
-    mock_stream_key_data = [{"stream_key": "test-stream-key"}]
-    
-    # Create a simple mock for httpx.AsyncClient.get
-    get_response = MagicMock()
-    get_response.json.return_value = {"data": mock_stream_key_data}
-    
-    # Patch the get method
-    with patch("httpx.AsyncClient.get", return_value=get_response):
-        stream_key = await twitch_service.get_stream_key("12345", "test_token")
-    
-    # Verify that the result is correct
-    assert isinstance(stream_key, dict)
-    assert "data" in stream_key
-    assert stream_key["data"][0]["stream_key"] == "test-stream-key"
+async def test_get_stream_key(twitch_service):
+    """Test la récupération de la clé de stream"""
+    mock_response = Mock()
+    mock_response.json.return_value = {
+        "data": [{
+            "stream_key": "test-stream-key"
+        }]
+    }
+    mock_response.raise_for_status = Mock()
+
+    with patch("httpx.AsyncClient.get", return_value=mock_response):
+        stream_key = await twitch_service.get_stream_key("987654321", "test_token")
+        assert stream_key == "test-stream-key"
 
 @pytest.mark.asyncio
 async def test_get_game_by_name():
@@ -191,31 +219,49 @@ async def test_get_videos_by_game_id():
     assert videos[0].title == "Test Video"
 
 @pytest.mark.asyncio
-async def test_search_videos_by_game():
-    """Test searching for videos by game name."""
-    twitch_service = TwitchService()
-    
-    # Create a game object for the return value of get_game_by_name
-    game = TwitchGame(**mock_game_data)
-    
-    # Create video objects for the return value of get_videos_by_game_id
-    videos = [TwitchVideo(**mock_videos_data[0])]
-    
-    # Patch all the methods used by search_videos_by_game
-    with patch.object(twitch_service.repository, "get_cached_game_search", return_value=None), \
-         patch.object(twitch_service, "get_game_by_name", return_value=game), \
-         patch.object(twitch_service, "get_videos_by_game_id", return_value=videos), \
-         patch.object(twitch_service.repository, "save_game_search_results", return_value=None):
-        
+async def test_search_videos_by_game(twitch_service):
+    """Test la recherche de vidéos par jeu"""
+    mock_game_response = Mock()
+    mock_game_response.json.return_value = {
+        "data": [{
+            "id": "123",
+            "name": "Test Game",
+            "box_art_url": "https://test.com/boxart.jpg"
+        }]
+    }
+    mock_game_response.raise_for_status = Mock()
+
+    mock_videos_response = Mock()
+    mock_videos_response.json.return_value = {
+        "data": [{
+            "id": "123456789",
+            "user_id": "987654321",
+            "user_login": "testuser",
+            "user_name": "Test User",
+            "title": "Test Video",
+            "description": "Test Description",
+            "created_at": "2024-03-25T08:00:00Z",
+            "published_at": "2024-03-25T08:00:00Z",
+            "url": "https://twitch.tv/videos/123456789",
+            "thumbnail_url": "https://test.com/thumb.jpg",
+            "viewable": "public",
+            "view_count": 100,
+            "language": "en",
+            "type": "archive",
+            "duration": "1h2m3s"
+        }]
+    }
+    mock_videos_response.raise_for_status = Mock()
+
+    with patch("httpx.AsyncClient.get", side_effect=[mock_game_response, mock_videos_response]):
         result = await twitch_service.search_videos_by_game("Test Game", "test_token")
-    
-    # Verify that the result is correct
-    assert isinstance(result, TwitchSearchResult)
-    assert result.game.id == "67890"
-    assert result.game.name == "Test Game"
-    assert len(result.videos) == 1
-    assert result.videos[0].id == "123456789"
-    assert result.videos[0].title == "Test Video"
+        assert isinstance(result, TwitchSearchResult)
+        assert isinstance(result.game, TwitchGame)
+        assert result.game.name == "Test Game"
+        assert len(result.videos) == 1
+        assert isinstance(result.videos[0], TwitchVideo)
+        assert result.videos[0].id == "123456789"
+        assert isinstance(result.last_updated, datetime)
 
 @pytest.mark.asyncio
 async def test_search_videos_by_game_with_cache():
@@ -241,18 +287,15 @@ async def test_search_videos_by_game_with_cache():
     assert result.videos[0].id == "123456789"
 
 @pytest.mark.asyncio
-async def test_search_videos_by_game_not_found():
-    """Test searching for videos when the game is not found."""
-    twitch_service = TwitchService()
-    
-    # Patch methods to simulate game not found
-    with patch.object(twitch_service.repository, "get_cached_game_search", return_value=None), \
-         patch.object(twitch_service, "get_game_by_name", return_value=None):
-        
+async def test_search_videos_by_game_not_found(twitch_service):
+    """Test la recherche de vidéos pour un jeu qui n'existe pas"""
+    mock_response = Mock()
+    mock_response.json.return_value = {"data": []}
+    mock_response.raise_for_status = Mock()
+
+    with patch("httpx.AsyncClient.get", return_value=mock_response):
         result = await twitch_service.search_videos_by_game("Nonexistent Game", "test_token")
-    
-    # Verify that the result has an empty game and videos
-    assert isinstance(result, TwitchSearchResult)
-    assert result.game.id == "0"
-    assert result.game.name == "Nonexistent Game"
-    assert len(result.videos) == 0 
+        assert isinstance(result, TwitchSearchResult)
+        assert result.game is None
+        assert len(result.videos) == 0
+        assert isinstance(result.last_updated, datetime) 

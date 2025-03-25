@@ -1,6 +1,11 @@
 import pytest
 from fastapi.testclient import TestClient
 from motor.motor_asyncio import AsyncIOMotorClient
+import os
+
+# Force test environment
+os.environ["ENVIRONMENT"] = "test"
+
 from backend.app.main import app
 from backend.app.config import settings
 import logging
@@ -26,7 +31,7 @@ async def test_db():
     logger.debug("Creating test database connection")
     # Use test database
     client = AsyncIOMotorClient(settings.MONGODB_URL)
-    db = client[settings.MONGODB_DB_NAME + "_test"]
+    db = client[settings.MONGODB_DB_NAME]
     
     # Clean database at the beginning of the test
     await db.users.delete_many({})
