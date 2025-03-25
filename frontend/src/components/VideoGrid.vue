@@ -30,7 +30,7 @@
         v-for="video in videoStore.videos"
         :key="video.id"
         :title="video.title"
-        :thumbnail="video.thumbnail_url"
+        :thumbnail="`https://static-cdn.jtvnw.net/previews-ttv/live_user_${video.user_name.toLowerCase()}-640x360.jpg`"
         :author="video.user_name"
         :views="video.view_count"
         :date="video.created_at"

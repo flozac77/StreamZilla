@@ -44,7 +44,11 @@ export const useVideoStore = defineStore('video', {
       this.loading = true
       this.error = null
       try {
-        console.log(`Recherche des vidéos pour le jeu: ${game}`)
+        console.log('🔍 Début de la recherche:', {
+          game,
+          timestamp: new Date().toISOString()
+        })
+        
         const response = await api.get<SearchResponse>(`/api/search`, {
           params: {
             game_name: game,
@@ -52,12 +56,23 @@ export const useVideoStore = defineStore('video', {
             use_cache: true
           }
         })
-        console.log('Réponse reçue:', response.data)
+        
+        console.log('📦 Données reçues:', {
+          videos_count: response.data.videos.length,
+          first_video: response.data.videos[0],
+          game_info: response.data.game,
+          last_updated: response.data.last_updated
+        })
+        
         this.videos = response.data.videos
         this.currentGame = game
         return response.data
       } catch (error) {
-        console.error('Erreur lors de la recherche:', error)
+        console.error('❌ Erreur de recherche:', {
+          error,
+          game,
+          timestamp: new Date().toISOString()
+        })
         this.error = "Erreur lors de la recherche des vidéos"
         throw error
       } finally {

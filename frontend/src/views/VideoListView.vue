@@ -9,21 +9,21 @@
     </div>
     
     <div v-else>
-      <h1 class="text-3xl font-bold mb-8 text-center">
+      <h1 class="text-3xl font-bold mb-8 text-center text-white">
         Vidéos {{ game }}
       </h1>
       
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div v-for="video in videos" :key="video.id" 
-             class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
-          <img :src="video.thumbnail_url.replace('{width}x{height}', '640x360')" 
+             class="bg-gray-800 rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
+          <img :src="`https://static-cdn.jtvnw.net/previews-ttv/live_user_${video.user_name.toLowerCase()}-640x360.jpg`"
                :alt="video.title"
                class="w-full h-48 object-cover">
           
           <div class="p-4">
-            <h2 class="text-xl font-semibold mb-2 line-clamp-2">{{ video.title }}</h2>
-            <p class="text-gray-600 mb-2">{{ video.user_name }}</p>
-            <p class="text-gray-500 text-sm">{{ formatViews(video.view_count) }} vues • {{ formatDuration(video.duration) }}</p>
+            <h2 class="text-xl font-semibold mb-2 line-clamp-2 text-white">{{ video.title }}</h2>
+            <p class="text-purple-400 mb-2">{{ video.user_name }}</p>
+            <p class="text-gray-400 text-sm">{{ formatViews(video.view_count) }} vues • {{ formatDuration(video.duration) }}</p>
           </div>
           
           <div class="px-4 pb-4">
@@ -40,17 +40,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useVideoStore } from '../stores/video'
+
+// Définition de l'interface Video
+interface Video {
+  id: string
+  user_name: string
+  title: string
+  url: string
+  view_count: number
+  duration: string
+}
 
 const route = useRoute()
 const videoStore = useVideoStore()
 
 const game = ref(route.params.game as string)
-const videos = ref([])
+const videos = ref<Video[]>([])
 const loading = ref(true)
 const error = ref('')
+const refreshInterval = ref<number | null>(null)
 
 const fetchVideos = async () => {
   try {
@@ -63,6 +74,25 @@ const fetchVideos = async () => {
     console.error(e)
   } finally {
     loading.value = false
+  }
+}
+
+// Configuration du rechargement automatique
+const startAutoRefresh = () => {
+  // Arrêt de l'intervalle existant si présent
+  stopAutoRefresh()
+  
+  // Démarrage d'un nouvel intervalle (2 minutes = 120000 ms)
+  refreshInterval.value = window.setInterval(() => {
+    console.log('Rechargement automatique des vidéos...')
+    fetchVideos()
+  }, 120000)
+}
+
+const stopAutoRefresh = () => {
+  if (refreshInterval.value) {
+    clearInterval(refreshInterval.value)
+    refreshInterval.value = null
   }
 }
 
@@ -92,7 +122,16 @@ const formatDuration = (duration: string): string => {
 watch(() => route.params.game, (newGame) => {
   game.value = newGame as string
   fetchVideos()
+  // Redémarrer l'intervalle quand le jeu change
+  startAutoRefresh()
 })
 
-onMounted(fetchVideos)
+onMounted(() => {
+  fetchVideos()
+  startAutoRefresh()
+})
+
+onUnmounted(() => {
+  stopAutoRefresh()
+})
 </script> 
