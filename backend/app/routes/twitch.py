@@ -1,12 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Header
+from fastapi import APIRouter, Depends, HTTPException, Request, Header, Query, status
 from fastapi.responses import RedirectResponse
 from cachetools import TTLCache, cached
-from typing import Optional
+from typing import Optional, List
+from pydantic import Field
 import logging
+from fastapi_limiter.depends import RateLimiter
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from ..config import settings
-from ..services.twitch_service import TwitchService
-from ..models.twitch import TwitchUser, TwitchToken
+from backend.app.config import settings
+from backend.app.services.twitch_service import TwitchService
+from backend.app.models.twitch import TwitchUser, TwitchToken, TwitchVideo, TwitchGame, TwitchSearchResult, SearchParams
+from backend.app.dependencies import get_twitch_service, get_twitch_token, get_db
+from backend.app.services.twitch.auth import TwitchAuthService
+from backend.app.repositories.token_repository import TokenRepository
 
 # Configure logger for debugging
 logging.basicConfig(level=logging.DEBUG)
@@ -19,12 +25,12 @@ router = APIRouter()
 twitch_cache = TTLCache(maxsize=settings.CACHE_MAX_SIZE, ttl=settings.CACHE_TTL)
 
 # Dependency to get TwitchService
-def get_twitch_service():
+async def get_twitch_service():
     service = TwitchService()
     try:
         yield service
     finally:
-        service.close()
+        await service.close()
 
 # Dependency to get token from Authorization header
 def get_token(authorization: Optional[str] = Header(None)):
@@ -32,91 +38,128 @@ def get_token(authorization: Optional[str] = Header(None)):
         return authorization.replace("Bearer ", "")
     return "test_token"  # Default value for tests
 
-@router.get("/auth/url")
-async def get_auth_url(service: TwitchService = Depends(get_twitch_service)):
+# Conditional rate limiter based on environment
+def get_rate_limiter(times: int, minutes: int):
+    if settings.ENVIRONMENT == "dev":
+        # En dev, pas de rate limiting
+        return lambda: None
+    else:
+        # En prod, utiliser le rate limiter
+        return RateLimiter(times=times, minutes=minutes)
+
+@router.get("/auth/url", response_model=str)
+async def get_auth_url(
+    service: TwitchService = Depends(get_twitch_service),
+    rate_limit: None = Depends(get_rate_limiter(times=5, minutes=1))
+):
     """Get Twitch authentication URL"""
     try:
-        url = await service.get_auth_url()
-        return {"url": url}
+        return await service.get_auth_url()
     except Exception as e:
-        logger.error(f"Error in get_auth_url: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error getting auth URL: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to generate auth URL")
 
-@router.get("/auth/callback")
-async def auth_callback(code: str, service: TwitchService = Depends(get_twitch_service)):
-    """Handle Twitch OAuth callback"""
+@router.get("/auth/callback", response_model=TwitchToken)
+async def auth_callback(
+    code: str,
+    service: TwitchService = Depends(get_twitch_service),
+    rate_limit: None = Depends(RateLimiter(times=5, minutes=1))
+):
+    """Handle OAuth callback and exchange code for token"""
     try:
-        logger.debug(f"Auth callback called with code: {code}")
-        token_data = await service.exchange_code_for_token(code)
-        logger.debug(f"Token data received: {token_data}")
-        user_info = await service.get_user_info(token_data.access_token)
-        logger.debug(f"User info received: {user_info}")
-        return {"user": user_info.model_dump(), "token": token_data.model_dump()}
+        return await service.exchange_code_for_token(code)
     except Exception as e:
-        logger.error(f"Error in auth_callback: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"Error exchanging code for token: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to exchange code for token")
 
-@router.get("/user/info")
-async def get_user_info(token: str = Depends(get_token), service: TwitchService = Depends(get_twitch_service)):
+@router.get("/user/info", response_model=TwitchUser)
+async def get_user_info(
+    token: str = Depends(get_twitch_token),
+    service: TwitchService = Depends(get_twitch_service),
+    rate_limit: None = Depends(RateLimiter(times=10, minutes=1))
+):
     """Get current user information"""
     try:
-        logger.debug(f"Getting user info with token: {token}")
-        user_info = await service.get_user_info(token)
-        logger.debug(f"User info received: {user_info}")
-        return user_info.model_dump()
+        return await service.get_user_info(token)
     except Exception as e:
-        logger.error(f"Error in get_user_info: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"Error getting user info: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get user info")
 
-@router.get("/user/videos")
-async def get_user_videos(user_id: Optional[str] = None, token: str = Depends(get_token), service: TwitchService = Depends(get_twitch_service)):
-    """Get user videos"""
+@router.get("/user/videos", response_model=List[TwitchVideo])
+async def get_user_videos(
+    user_id: str,
+    token: str = Depends(get_twitch_token),
+    service: TwitchService = Depends(get_twitch_service),
+    rate_limit: None = Depends(RateLimiter(times=10, minutes=1))
+):
+    """Get videos for a user"""
     try:
-        logger.debug(f"Getting videos with token: {token}")
-        if not user_id:
-            # If no ID provided, use default ID for tests
-            user_id = "12345"
-        videos = await service.get_user_videos(user_id, token)
-        logger.debug(f"Videos received: {videos}")
-        return videos
+        return await service.get_user_videos(user_id, token)
     except Exception as e:
-        logger.error(f"Error in get_user_videos: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"Error getting user videos: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get user videos")
 
 @router.get("/user/stream-key")
-async def get_stream_key(user_id: Optional[str] = None, token: str = Depends(get_token), service: TwitchService = Depends(get_twitch_service)):
-    """Get user stream key"""
+async def get_stream_key(
+    user_id: str,
+    token: str = Depends(get_twitch_token),
+    service: TwitchService = Depends(get_twitch_service),
+    rate_limit: None = Depends(RateLimiter(times=5, minutes=1))
+):
+    """Get user's stream key"""
     try:
-        logger.debug(f"Getting stream key with token: {token}")
-        if not user_id:
-            # If no ID provided, use default ID for tests
-            user_id = "12345"
-        result = await service.get_stream_key(user_id, token)
-        logger.debug(f"Stream key received: {result}")
-        return result
+        return await service.get_stream_key(user_id, token)
     except Exception as e:
-        logger.error(f"Error in get_stream_key: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"Error getting stream key: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get stream key")
 
-@router.get("/user/find")
-async def find_user_by_login(login: str, token: str = Depends(get_token), service: TwitchService = Depends(get_twitch_service)):
-    """Trouve un utilisateur Twitch par son nom de login"""
+@router.get("/search", response_model=TwitchSearchResult)
+async def search_videos_by_game(
+    game_name: str = Query(..., min_length=1, max_length=100),
+    limit: int = Query(default=10, ge=1, le=100),
+    use_cache: bool = Query(default=True),
+    service: TwitchService = Depends(get_twitch_service),
+    rate_limit: None = Depends(get_rate_limiter(times=10, minutes=1))
+):
+    """Search videos by game name"""
     try:
-        logger.debug(f"Searching for user with login: {login}")
-        user = await service.get_user_by_login(login, token)
-        
-        if not user:
-            raise HTTPException(status_code=404, detail=f"Streamer '{login}' not found")
-        
-        logger.debug(f"User found: {user}")
-        return {
-            "id": user.id,
-            "login": user.login,
-            "display_name": user.display_name,
-            "profile_image_url": user.profile_image_url
-        }
-    except HTTPException:
-        raise
+        return await service.search_videos_by_game(game_name, None, limit=limit, use_cache=use_cache)
     except Exception as e:
-        logger.error(f"Error in find_user_by_login: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"Error searching videos: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to search videos")
+
+async def get_auth_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> TwitchAuthService:
+    token_repository = TokenRepository(db)
+    return TwitchAuthService(token_repository)
+
+@router.get("/auth/test")
+async def test_auth(auth_service: TwitchAuthService = Depends(get_auth_service)):
+    """
+    Test l'authentification Twitch en générant/validant un token.
+    """
+    try:
+        token = await auth_service.get_valid_token()
+        return {
+            "status": "success",
+            "token_type": token.token_type,
+            "expires_at": token.expires_at.isoformat(),
+            "is_valid": token.is_valid,
+            "token_preview": f"{token.access_token[:8]}..."  # Ne jamais exposer le token complet
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/videos/{game_name}")
+async def get_videos_by_game(
+    game_name: str,
+    auth_service: TwitchAuthService = Depends(get_auth_service)
+):
+    """
+    Récupère les vidéos pour un jeu donné.
+    """
+    try:
+        token = await auth_service.get_valid_token()
+        # TODO: Implémenter la recherche de vidéos
+        return {"message": f"Recherche de vidéos pour {game_name} (à implémenter)"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

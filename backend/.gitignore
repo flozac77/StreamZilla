@@ -1,0 +1,58 @@
+# Environnement virtuel spécifique
+venv-py311/
+.venv-py311/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Tests et couverture
+.coverage
+htmlcov/
+.pytest_cache/
+coverage.xml
+*.cover
+
+# Logs
+*.log
+logs/
+log/
+
+# Base de données
+*.sqlite3
+*.db
+
+# Cache
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+
+# Fichiers temporaires
+*.bak
+*.tmp
+*.temp 

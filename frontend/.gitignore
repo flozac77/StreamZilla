@@ -1,0 +1,61 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Build
+dist
+dist-ssr
+*.local
+coverage
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Testing
+/cypress/videos/
+/cypress/screenshots/
+/coverage
+
+# Cache
+.npm
+.eslintcache
+.stylelintcache
+.prettiercache
+.cache
+.parcel-cache
+
+# Misc
+*.pem
+.vercel
+.netlify
+.next
+.nuxt
+.output
+.temp
+.tmp
+.cache
+*.tsbuildinfo
+.vite

@@ -11,6 +11,7 @@ __pycache__/
 
 # Fichiers cachés (à l'exception de ceux explicitement autorisés)
 .*
+-i
 !.gitignore
 !.env.example
 !.editorconfig
