@@ -1,19 +1,28 @@
+import logging
+from contextlib import asynccontextmanager
+
+# FastAPI imports
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.sessions import SessionMiddleware
+
+# Cache and Rate Limiting
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
 from fastapi_cache.backends.inmemory import InMemoryBackend
-from redis.asyncio import Redis
 from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
-from backend.app.routes import twitch
-from backend.app.config import settings
-from starlette.middleware.sessions import SessionMiddleware
+from redis.asyncio import Redis
+
+# Monitoring
 from prometheus_fastapi_instrumentator import Instrumentator
+
+# Local imports
+from backend.app.routers.search import router as search_router
+from backend.app.routers.auth import router as auth_router
+from backend.app.config import settings
 from backend.app.middleware.rate_limit import rate_limit_middleware
-import logging
-from contextlib import asynccontextmanager
 
 # Configuration des logs
 logging.basicConfig(level=logging.DEBUG)
@@ -47,7 +56,7 @@ async def lifespan(app: FastAPI):
 
 # Init FastAPI
 app = FastAPI(
-    title="VisiBrain API",
+    title="VisioBrain API",
     description="API pour la gestion des vidéos Twitch",
     version="1.0.0",
     docs_url="/api/docs",
@@ -63,7 +72,7 @@ instrumentator.instrument(app)
 # Configuration CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Frontend Vue.js
+    allow_origins=["http://localhost:5173"],  # Frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -82,7 +91,8 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(twitch.router, prefix="/api", tags=["twitch"])
+app.include_router(search_router)  # Préfixe déjà défini dans le router
+app.include_router(auth_router)    # Préfixe déjà défini dans le router
 
 # Health check endpoint
 @app.get("/health")
@@ -91,8 +101,7 @@ async def health_check():
 
 @app.get("/")
 async def root():
-    """Root endpoint"""
-    return {"message": "Hello World"}
+    return {"message": "VisioBrain API is running"}
 
 @app.on_event("startup")
 async def startup_event():

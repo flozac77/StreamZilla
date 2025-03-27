@@ -4,6 +4,13 @@ import SearchBar from './components/SearchBar.vue'
 import VideoGrid from './components/VideoGrid.vue'
 import { createPinia } from 'pinia'
 import { useVideoStore } from './stores/videoStore'
+import { useUserPreferencesStore } from './stores/userPreferences'
+
+const userPreferences = useUserPreferencesStore()
+
+onMounted(() => {
+  userPreferences.loadFromLocalStorage()
+})
 </script>
 
 <template>

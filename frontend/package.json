@@ -17,13 +17,14 @@
     "@heroicons/vue": "^2.1.1",
     "@types/node": "^22.13.13",
     "@vueuse/components": "^13.0.0",
-    "@vueuse/core": "^10.9.0",
+    "@vueuse/core": "^10.11.1",
     "@vueuse/motion": "^2.1.0",
     "axios": "^1.8.4",
     "pinia": "^2.3.1",
     "vue": "^3.4.21",
     "vue-lazyload": "^3.0.0",
-    "vue-router": "^4.5.0"
+    "vue-router": "^4.5.0",
+    "vue-toastification": "^2.0.0-rc.5"
   },
   "devDependencies": {
     "@babel/core": "^7.24.3",

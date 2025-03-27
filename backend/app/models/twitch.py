@@ -4,7 +4,7 @@ from datetime import datetime
 
 class SearchParams(BaseModel):
     game_name: str = Field(..., min_length=1, max_length=100, description="Nom du jeu à rechercher")
-    limit: int = Field(default=10, ge=1, le=100, description="Nombre maximum de résultats à retourner")
+    limit: int = Field(default=100, ge=1, le=100, description="Nombre maximum de résultats à retourner")
 
 class TwitchUser(BaseModel):
     id: str
@@ -49,6 +49,8 @@ class TwitchGame(BaseModel):
     box_art_url: str
 
 class TwitchSearchResult(BaseModel):
+    game_name: str = Field(..., description="Nom du jeu recherché")
     game: Optional[TwitchGame] = None
     videos: List[TwitchVideo] = Field(default_factory=list)
+    total_count: int = Field(default=0, description="Nombre total de vidéos disponibles")
     last_updated: datetime = Field(default_factory=datetime.utcnow) 

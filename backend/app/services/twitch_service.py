@@ -146,7 +146,8 @@ class TwitchService:
         self,
         game_name: str,
         game: Optional[TwitchGame] = None,
-        limit: int = 10,
+        limit: int = 100,
+        offset: int = 0,
         use_cache: bool = True
     ) -> TwitchSearchResult:
         """Search videos by game name with caching"""
@@ -164,17 +165,23 @@ class TwitchService:
                         game_name=game_name,
                         game=None,
                         videos=[],
+                        total_count=0,
                         last_updated=datetime.utcnow()
                     )
 
             # Récupérer les vidéos
             videos = await self.get_videos_by_game_id(game.id, token.access_token)
+            total_count = len(videos)
+            
+            # Appliquer la pagination
+            paginated_videos = videos[offset:offset + limit]
             
             # Créer le résultat
             result = TwitchSearchResult(
                 game_name=game_name,
                 game=game,
-                videos=videos[:limit],  # Limiter le nombre de vidéos
+                videos=paginated_videos,
+                total_count=total_count,
                 last_updated=datetime.utcnow()
             )
 
@@ -182,7 +189,14 @@ class TwitchService:
 
         except Exception as e:
             logger.error(f"Error searching videos by game: {str(e)}")
-            raise
+            # Retourner un résultat vide mais valide
+            return TwitchSearchResult(
+                game_name=game_name,
+                game=None,
+                videos=[],
+                total_count=0,
+                last_updated=datetime.utcnow()
+            )
 
     def get_user_token(self, user_id: str) -> Optional[dict]:
         """Get user token from database"""
