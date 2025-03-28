@@ -27,8 +27,8 @@ class Settings(BaseSettings):
 class DevSettings(Settings):
     """Development settings."""
     ENVIRONMENT: str = "dev"
-    TWITCH_CLIENT_ID: str = "wbkcxez0h72vcd7rmcj3i5rlle78k9"
-    TWITCH_CLIENT_SECRET: str = "t9ne77q37hd31z7yguatgob49prhxv"
+    TWITCH_CLIENT_ID: str 
+    TWITCH_CLIENT_SECRET: str 
     # ngrok uniquement pour le callback Twitch
     TWITCH_REDIRECT_URI: str = "https://dd9e-2001-861-49c3-9eb0-4ce7-58da-632d-8062.ngrok-free.app/callback"
     MONGODB_URL: str = "mongodb://localhost:27017"

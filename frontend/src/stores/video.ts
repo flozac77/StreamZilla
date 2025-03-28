@@ -18,6 +18,11 @@ interface Video {
   duration: string
   created_at: string
   language: string
+  thumbnail_url: string
+  description: string
+  streamer_name: string
+  game_id: string
+  game_name: string
 }
 
 interface Game {
@@ -100,7 +105,11 @@ export const useVideoStore = defineStore('video', {
 
       // Filtre par date
       if (this.filters.date !== 'all') {
-        const now = new Date()
+        // En test, on utilise une date fixe
+        const now = import.meta.env.MODE === 'test' 
+          ? new Date('2024-01-01T12:00:00Z')
+          : new Date()
+        
         const timeMap = {
           'today': 24 * 60 * 60 * 1000,
           'this_week': 7 * 24 * 60 * 60 * 1000,

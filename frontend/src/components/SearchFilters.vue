@@ -5,7 +5,8 @@
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-2">Date</label>
         <select v-model="selectedFilters.date"
-                class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500">
+                class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
+                data-test="date-filter">
           <option value="all">Toutes les dates</option>
           <option value="today">Aujourd'hui</option>
           <option value="this_week">Cette semaine</option>
@@ -17,7 +18,8 @@
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-2">Durée</label>
         <select v-model="selectedFilters.duration"
-                class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500">
+                class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
+                data-test="duration-filter">
           <option value="all">Toutes les durées</option>
           <option value="short">Moins de 15 minutes</option>
           <option value="medium">15-60 minutes</option>
@@ -29,7 +31,8 @@
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-2">Vues</label>
         <select v-model="selectedFilters.views"
-                class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500">
+                class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
+                data-test="views-filter">
           <option value="all">Toutes les vues</option>
           <option value="less_100">Moins de 100</option>
           <option value="100_1000">100-1000</option>
@@ -42,7 +45,8 @@
         <label class="block text-sm font-medium text-gray-300 mb-2">Langue</label>
         <select v-model="selectedFilters.language"
                 class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
-                @change="handleLanguageChange">
+                @change="handleLanguageChange"
+                data-test="language-filter">
           <option value="all">Toutes les langues</option>
           <option value="fr">Français</option>
           <option value="en">Anglais</option>
@@ -67,8 +71,10 @@
                 'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
                 currentSort === sort.value
                   ? 'bg-purple-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              ]">
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600',
+                { active: currentSort === sort.value }
+              ]"
+              data-test="sort-button">
         {{ sort.label }}
       </button>
     </div>
@@ -79,19 +85,19 @@
 import { ref, reactive, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useVideoStore } from '../stores/video'
+import type { SearchFiltersData } from '../types/search-filters'
 
-const videoStore = useVideoStore()
-const { filters: storeFilters } = storeToRefs(videoStore)
+const store = useVideoStore()
+const { filters, sortBy: storeSortBy } = storeToRefs(store)
 
-// Initialiser les filtres locaux avec les valeurs du store
-const selectedFilters = reactive({
-  date: storeFilters.value.date,
-  duration: storeFilters.value.duration,
-  views: storeFilters.value.views,
-  language: storeFilters.value.language
+const selectedFilters = ref<SearchFiltersData['selectedFilters']>({
+  date: filters.value.date,
+  duration: filters.value.duration,
+  views: filters.value.views,
+  language: filters.value.language
 })
 
-const currentSort = ref(videoStore.$state.sortBy)
+const currentSort = ref(storeSortBy.value)
 
 const sortOptions = [
   { value: 'date', label: 'Date' },
@@ -101,34 +107,38 @@ const sortOptions = [
 
 // Gestion du changement de langue
 const handleLanguageChange = () => {
-  console.log('🌍 Changement de langue:', selectedFilters.language)
-  videoStore.$patch((state) => {
-    state.filters.language = selectedFilters.language
+  console.log('🌍 Changement de langue:', selectedFilters.value.language)
+  store.$patch((state) => {
+    state.filters.language = selectedFilters.value.language
   })
-  videoStore.applyFilters()
+  store.applyFilters()
 }
 
 // Synchronisation bidirectionnelle avec le store
 watch(selectedFilters, (newFilters) => {
-  console.log('📋 Mise à jour des filtres:', newFilters)
-  videoStore.$patch((state) => {
-    state.filters = { ...state.filters, ...newFilters }
-  })
-  videoStore.applyFilters()
+  if (JSON.stringify(newFilters) !== JSON.stringify(store.filters)) {
+    console.log('📋 Mise à jour des filtres:', newFilters)
+    store.$patch((state) => {
+      state.filters = { ...state.filters, ...newFilters }
+    })
+    store.applyFilters()
+  }
 }, { deep: true })
 
 // Synchronisation du store vers le composant
-watch(() => storeFilters.value, (newFilters) => {
-  Object.assign(selectedFilters, newFilters)
+watch(() => store.filters, (newFilters) => {
+  if (JSON.stringify(selectedFilters.value) !== JSON.stringify(newFilters)) {
+    selectedFilters.value = { ...newFilters }
+  }
 }, { deep: true })
 
 // Gestion du tri
 const handleSort = (sort: string) => {
   currentSort.value = sort
   console.log('🔄 Mise à jour du tri:', sort)
-  videoStore.$patch((state) => {
+  store.$patch((state) => {
     state.sortBy = sort
   })
-  videoStore.applyFilters()
+  store.applyFilters()
 }
 </script> 
