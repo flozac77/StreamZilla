@@ -1,139 +1,183 @@
-# VisiBrain - Explorateur de Vidéos Twitch
+# VisiBrain - Explorateur de Vidéos Twitch 🎮
 
-VisiBrain est une application web permettant de rechercher et visualiser des vidéos Twitch par jeu. Elle utilise l'API Twitch pour récupérer les vidéos et offre une interface moderne et réactive.
+VisiBrain est une application web qui vous permet de rechercher et regarder des vidéos Twitch par jeu. C'est comme un YouTube, mais spécialisé pour les vidéos de jeux vidéo sur Twitch !
 
-## 🚀 Démarrage Rapide
+## 🚀 Comment commencer ?
 
-### Prérequis
+### 1. Installation des outils nécessaires
 
-- Python 3.8+ pour le backend
-- Node.js 16+ pour le frontend
-- Un compte développeur Twitch et les identifiants API (Client ID et Secret)
+#### Pour le Backend (serveur) :
+1. Téléchargez et installez Python 3.8 ou plus récent depuis [python.org](https://www.python.org/downloads/)
+   - **Important** : Cochez la case "Add Python to PATH" lors de l'installation
+2. Ouvrez un terminal (PowerShell sur Windows)
+3. Vérifiez que Python est bien installé :
+   ```bash
+   python --version
+   ```
 
-## 🔧 Backend (FastAPI)
+#### Pour le Frontend (interface) :
+1. Téléchargez et installez Node.js 16 ou plus récent depuis [nodejs.org](https://nodejs.org/)
+2. Vérifiez que Node.js est bien installé :
+   ```bash
+   node --version
+   ```
 
-### Installation
+### 2. Configuration de ngrok (pour tester l'API en local)
 
+1. Téléchargez ngrok depuis [ngrok.com](https://ngrok.com/download)
+2. Créez un compte gratuit sur ngrok.com
+3. Connectez votre compte ngrok :
+   ```bash
+   ngrok config add-authtoken votre_token_ngrok
+   ```
+4. Lancez ngrok pour exposer votre serveur local :
+   ```bash
+   ngrok http 8000
+   ```
+5. Copiez l'URL HTTPS générée (ex: `https://abc123.ngrok.io`)
+
+### 3. Configuration de l'API Twitch
+
+1. Allez sur [Twitch Developer Console](https://console.twitch.tv/)
+2. Connectez-vous avec votre compte Twitch
+3. Cliquez sur "Applications" puis "Register Your Application"
+4. Remplissez le formulaire :
+   - Name : "VisiBrain" (ou ce que vous voulez)
+   - OAuth Redirect URLs : `https://abc123.ngrok.io/callback` (remplacez par votre URL ngrok)
+   - Category : "Website Integration"
+5. Cliquez sur "Create"
+6. Notez votre "Client ID" et "Client Secret"
+
+### 4. Installation du projet
+
+#### Backend (serveur) :
 ```bash
+# 1. Allez dans le dossier backend
 cd backend
+
+# 2. Créez un environnement virtuel
 python -m venv venv
-source venv/bin/activate  # Sur Windows: venv\Scripts\activate
+
+# 3. Activez l'environnement virtuel
+# Sur Windows :
+venv\Scripts\activate
+# Sur Mac/Linux :
+source venv/bin/activate
+
+# 4. Installez les dépendances
 pip install -r requirements.txt
-```
 
-### Configuration
-
-1. Créez un fichier `.env` dans le dossier `backend` :
-```env
+# 5. Créez un fichier .env
+# Copiez ce contenu dans un nouveau fichier .env :
 TWITCH_CLIENT_ID=votre_client_id
 TWITCH_CLIENT_SECRET=votre_client_secret
-TWITCH_REDIRECT_URI=http://localhost:5173/callback
+TWITCH_REDIRECT_URI=https://abc123.ngrok.io/callback  # Remplacez par votre URL ngrok
 DATABASE_URL=sqlite:///./app.db
-CACHE_TTL=120  # Durée du cache en secondes
-CACHE_MAX_SIZE=100  # Nombre maximum d'entrées en cache
+CACHE_TTL=120
+CACHE_MAX_SIZE=100
 ```
 
-### Lancement
-
+#### Frontend (interface) :
 ```bash
+# 1. Allez dans le dossier frontend
+cd frontend
+
+# 2. Installez les dépendances
+npm install
+
+# 3. Créez un fichier .env
+# Copiez ce contenu dans un nouveau fichier .env :
+VITE_API_URL=https://abc123.ngrok.io  # Remplacez par votre URL ngrok
+```
+
+### 5. Lancement de l'application
+
+1. Démarrez le backend :
+```bash
+# Dans le dossier backend
 uvicorn backend.app.main:app --reload
 ```
 
-### Tests
-
+2. Démarrez le frontend :
 ```bash
-pytest backend/tests/
-```
-
-### Points d'API Principaux
-
-- `GET /api/search` : Recherche des vidéos par jeu
-- `GET /api/auth/test` : Test de l'authentification
-
-## 🎨 Frontend (Vue.js)
-
-### Installation
-
-```bash
-cd frontend
-npm install
-```
-
-### Configuration
-
-1. Créez un fichier `.env` dans le dossier `frontend` :
-```env
-VITE_API_URL=http://localhost:5173
-```
-
-### Lancement
-
-```bash
+# Dans le dossier frontend
 npm run dev
 ```
 
-### Build Production
+3. Ouvrez votre navigateur et allez à `http://localhost:5173`
 
-```bash
-npm run build
-```
+## 🎯 Fonctionnalités
 
-### Tests
+- 🔍 Recherche de vidéos par jeu
+- 📊 Filtrage par :
+  - Date (aujourd'hui, cette semaine, ce mois)
+  - Durée (court, moyen, long)
+  - Nombre de vues
+  - Langue
+- 🌙 Mode sombre
+- 📱 Interface responsive (mobile, tablette, ordinateur)
+- ⚡ Actualisation automatique toutes les 2 minutes
 
-```bash
-npm run test
-```
-
-## 🌟 Fonctionnalités
-
-- Recherche de vidéos par jeu
-- Mise en cache des résultats pour optimiser les performances
-- Interface responsive et moderne
-- Mode sombre
-- Actualisation automatique des résultats toutes les 2 minutes
-- Affichage des vues et de la durée des vidéos
-- Liens directs vers les vidéos Twitch
-
-## 🔍 Structure du Projet
+## 🛠️ Structure du projet
 
 ```
 .
-├── backend/
-│   ├── app/
-│   │   ├── models/
-│   │   ├── routes/
-│   │   ├── services/
-│   │   └── main.py
-│   └── tests/
-└── frontend/
-    ├── src/
-    │   ├── components/
-    │   ├── views/
-    │   ├── stores/
-    │   └── App.vue
-    └── tests/
+├── backend/           # Serveur (Python)
+│   ├── app/          # Code de l'application
+│   └── tests/        # Tests du serveur
+└── frontend/         # Interface (Vue.js)
+    ├── src/          # Code de l'interface
+    └── tests/        # Tests de l'interface
 ```
+
+## 🧪 Tests
+
+### Backend :
+```bash
+cd backend
+pytest
+```
+
+### Frontend :
+```bash
+cd frontend
+npm run test:unit
+```
+
+## 🔒 Sécurité
+
+- Les identifiants Twitch sont stockés de manière sécurisée
+- Les requêtes sont limitées pour éviter la surcharge
+- Les données sensibles sont protégées
+
+## 📚 Documentation API
+
+La documentation de l'API est disponible à `http://localhost:8000/docs`
+
+## ❓ Questions fréquentes
+
+1. **L'application ne démarre pas ?**
+   - Vérifiez que Python et Node.js sont bien installés
+   - Assurez-vous que tous les fichiers .env sont correctement configurés
+   - Vérifiez que les ports 8000 et 5173 sont disponibles
+   - Assurez-vous que ngrok est bien configuré et que l'URL est correcte
+
+2. **Les vidéos ne s'affichent pas ?**
+   - Vérifiez vos identifiants Twitch dans le fichier .env
+   - Assurez-vous que l'URL ngrok est correctement configurée dans :
+     - Twitch Developer Console
+     - Fichier .env du backend
+     - Fichier .env du frontend
+   - Vérifiez que ngrok est bien en cours d'exécution
+
+3. **Les tests échouent ?**
+   - Vérifiez que toutes les dépendances sont installées
+   - Assurez-vous d'être dans le bon dossier lors de l'exécution des tests
 
 ## 🤝 Contribution
 
 1. Fork le projet
-2. Créez votre branche (`git checkout -b feature/AmazingFeature`)
-3. Commit vos changements (`git commit -m 'Add some AmazingFeature'`)
-4. Push sur la branche (`git push origin feature/AmazingFeature`)
-5. Ouvrez une Pull Request
-
-## 📝 Notes
-
-- L'application utilise SQLite par défaut, mais peut être configurée pour utiliser d'autres bases de données
-- Le cache est configuré pour expirer après 2 minutes par défaut
-- Les tests d'intégration nécessitent une connexion internet pour les appels à l'API Twitch
-
-## 🔐 Sécurité
-
-- Les tokens Twitch sont stockés de manière sécurisée
-- Les requêtes API sont limitées en fréquence
-- Les données sensibles sont protégées via les variables d'environnement
-
-## 📚 Documentation API
-
-La documentation Swagger de l'API est disponible à l'adresse : `http://localhost:5173/docs` 
+2. Créez une branche (`git checkout -b feature/MaNouvelleFonctionnalite`)
+3. Committez vos changements (`git commit -m 'Ajout d'une nouvelle fonctionnalité'`)
+4. Push sur la branche (`git push origin feature/MaNouvelleFonctionnalite`)
+5. Ouvrez une Pull Request 
