@@ -13,6 +13,13 @@ const router = createRouter({
       path: '/videos/:game',
       name: 'videos',
       component: () => import('../views/VideoListView.vue')
+    },
+    {
+      path: '/search/:game',
+      redirect: to => {
+        // Redirige /search/fortnite vers /videos/fortnite
+        return { path: `/videos/${to.params.game}` }
+      }
     }
   ]
 })

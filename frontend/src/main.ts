@@ -4,11 +4,20 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import Toast from 'vue-toastification'
+import VueLazyload from 'vue-lazyload'
+import axios from 'axios'
 import 'vue-toastification/dist/index.css'
 
-const app = createApp(App)
+// Configuration d'Axios
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-const toastOptions = {
+const app = createApp(App)
+const pinia = createPinia()
+
+// Configuration des plugins
+app.use(pinia)
+app.use(router)
+app.use(Toast, {
   position: 'top-right',
   timeout: 5000,
   closeOnClick: true,
@@ -21,10 +30,12 @@ const toastOptions = {
   closeButton: 'button',
   icon: true,
   rtl: false
-}
-
-app.use(createPinia())
-app.use(router)
-app.use(Toast, toastOptions)
+})
+app.use(VueLazyload, {
+  preLoad: 1.3,
+  error: '/error-image.png',
+  loading: '/loading-image.gif',
+  attempt: 1
+})
 
 app.mount('#app')
