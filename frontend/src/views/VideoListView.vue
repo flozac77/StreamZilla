@@ -98,9 +98,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, onUnmounted } from 'vue'
+import { ref, onMounted, watch, onUnmounted, defineExpose } from 'vue'
 import { useRoute } from 'vue-router'
-import { useVideoStore } from '../stores/video'
+import { useVideoStore } from '../stores/videoStore'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import SearchFilters from '../components/SearchFilters.vue'
 import UserPreferences from '../components/UserPreferences.vue'
@@ -145,12 +145,12 @@ const setupIntersectionObserver = () => {
     ([entry]) => {
       if (entry.isIntersecting && !videoStore.loading && !videoStore.loadingMore) {
         console.log('🔄 Intersection détectée, chargement de plus de vidéos...')
-        videoStore.loadMoreVideos()
+        videoStore.loadMore()
       }
     },
     {
-      threshold: 0.1, // Déclenche dès que 10% de l'élément est visible
-      rootMargin: '100px' // Déclenche 100px avant que l'élément soit visible
+      threshold: 0.1,
+      rootMargin: '100px'
     }
   )
 
@@ -248,4 +248,16 @@ const formatDuration = (duration: string): string => {
   }
   return `${minutes}:${seconds.padStart(2, '0')}`
 }
+
+// Expose les méthodes pour les tests
+defineExpose({
+  updateFilters,
+  updateSort,
+  fetchVideos,
+  setupIntersectionObserver,
+  retrySearch,
+  toggleFavoriteWithNotification,
+  formatViews,
+  formatDuration
+})
 </script> 

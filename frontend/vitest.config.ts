@@ -1,10 +1,10 @@
 /// <reference types="vitest" />
-import { defineConfig } from 'vite'
-import Vue from '@vitejs/plugin-vue'
-import path from 'path'
+import { defineConfig } from 'vitest/config'
+import vue from '@vitejs/plugin-vue'
+import { fileURLToPath } from 'node:url'
 
 export default defineConfig({
-  plugins: [Vue()],
+  plugins: [vue()],
   test: {
     globals: true,
     environment: 'jsdom',
@@ -12,6 +12,13 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
+      exclude: [
+        'node_modules/',
+        'dist/',
+        '**/*.{test,spec}.{js,ts,jsx,tsx}',
+        '**/types/**',
+        '**/components.d.ts',
+      ],
     },
     include: ['tests/**/*.spec.ts'],
     deps: {
@@ -20,7 +27,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src')
-    }
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
   }
 }) 

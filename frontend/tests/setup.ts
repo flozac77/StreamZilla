@@ -1,16 +1,16 @@
-import '@testing-library/jest-dom'
-import { config } from '@vue/test-utils'
 import { vi } from 'vitest'
-import { createPinia, setActivePinia } from 'pinia'
-
-// Mock des variables d'environnement
-process.env.VITE_API_URL = 'http://localhost:8000'
+import { config } from '@vue/test-utils'
+import { createTestingPinia } from '@pinia/testing'
+import axios from 'axios'
+import MockAdapter from 'axios-mock-adapter'
 
 // Configuration globale de Vue Test Utils
 config.global.mocks = {
+  $t: (key: string) => key,
   $route: {
     params: {},
-    query: {}
+    query: {},
+    path: '/'
   },
   $router: {
     push: vi.fn(),
@@ -18,31 +18,20 @@ config.global.mocks = {
   }
 }
 
-// Mock d'IntersectionObserver pour les tests
-class MockIntersectionObserver {
-  observe() {
-    return null
-  }
+// Configuration de Pinia pour les tests
+const pinia = createTestingPinia({
+  createSpy: vi.fn,
+  stubActions: false
+})
 
-  unobserve() {
-    return null
-  }
+// Configuration d'Axios Mock Adapter
+const mockAxios = new MockAdapter(axios)
 
-  disconnect() {
-    return null
-  }
-}
+// Réinitialisation des mocks après chaque test
+afterEach(() => {
+  vi.clearAllMocks()
+  mockAxios.reset()
+})
 
-global.IntersectionObserver = MockIntersectionObserver as any
-
-// Mock de import.meta.env
-vi.mock('import.meta.env', () => ({
-  VITE_API_URL: 'http://localhost:8000'
-}))
-
-// Initialisation de Pinia
-const pinia = createPinia()
-setActivePinia(pinia)
-
-// Configuration globale de Vue Test Utils avec Pinia
-config.global.plugins = [pinia] 
+// Export des utilitaires de test
+export { pinia, mockAxios } 

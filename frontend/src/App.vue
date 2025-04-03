@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import SearchBar from './components/SearchBar.vue'
-import VideoGrid from './components/VideoGrid.vue'
-import { createPinia } from 'pinia'
-import { useVideoStore } from './stores/videoStore'
+import { onMounted } from 'vue'
 import { useUserPreferencesStore } from './stores/userPreferences'
+
+// On n'a plus besoin d'importer createPinia car il est configuré dans main.ts
+// On n'a plus besoin d'importer SearchBar et VideoGrid car ils sont utilisés dans les vues
+// On n'a plus besoin d'importer useVideoStore car il n'est pas utilisé directement ici
 
 const userPreferences = useUserPreferencesStore()
 
@@ -32,6 +32,10 @@ onMounted(() => {
 </template>
 
 <style>
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 body {
   margin: 0;
   padding: 0;
@@ -67,8 +71,4 @@ body {
   opacity: 0;
   transform: translateX(30px);
 }
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 </style>
