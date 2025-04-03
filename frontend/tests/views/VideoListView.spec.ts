@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createTestingPinia } from '@pinia/testing'
 import VideoListView from '@/views/VideoListView.vue'
 import { useVideoStore } from '@/stores/videoStore'
 import { useUserPreferencesStore } from '@/stores/userPreferencesStore'
-import { mockAxios } from '../setup'
+import { useToast } from 'vue-toastification'
 
-// Mock des composants enfants
+// Mock des composants
 vi.mock('@/components/SearchFilters.vue', () => ({
   default: {
     name: 'SearchFilters',
@@ -28,202 +28,167 @@ vi.mock('@/components/LoadingSpinner.vue', () => ({
   }
 }))
 
+vi.mock('vue-toastification', () => ({
+  useToast: vi.fn(() => ({
+    error: vi.fn(),
+    success: vi.fn()
+  }))
+}))
+
+const mockVideos = [
+  {
+    id: '1',
+    title: 'Video 1',
+    created_at: new Date().toISOString(),
+    duration: '00:05:00',
+    view_count: 500,
+    language: 'fr',
+    user_name: 'user1',
+    url: 'url1',
+    thumbnail_url: 'thumb1'
+  },
+  {
+    id: '2',
+    title: 'Video 2',
+    created_at: '2023-01-01T00:00:00Z',
+    duration: '02:00:00',
+    view_count: 1500,
+    language: 'en',
+    user_name: 'user2',
+    url: 'url2',
+    thumbnail_url: 'thumb2'
+  }
+]
+
 describe('VideoListView', () => {
-  const mockVideos = [
-    {
-      id: '1',
-      title: 'Video 1',
-      thumbnail_url: 'url1',
-      duration: '1h30m',
-      view_count: 1000,
-      language: 'fr',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: '2',
-      title: 'Video 2',
-      thumbnail_url: 'url2',
-      duration: '45m',
-      view_count: 500,
-      language: 'en',
-      created_at: new Date().toISOString()
-    }
-  ]
+  let wrapper
+  let videoStore
+  let userPreferencesStore
+  let toast
 
   beforeEach(() => {
-    // Mock de la réponse API
-    mockAxios.onGet('/api/search').reply(200, { videos: mockVideos })
-    
-    // Reset des timers
-    vi.useFakeTimers()
-  })
-
-  afterEach(() => {
-    mockAxios.reset()
-    vi.clearAllMocks()
-    vi.useRealTimers()
-  })
-
-  it('appelle searchVideosByGame au montage avec le bon paramètre', async () => {
-    const wrapper = mount(VideoListView, {
-      global: {
-        plugins: [createTestingPinia({
-          createSpy: vi.fn,
-          stubActions: false
-        })]
+    const pinia = createTestingPinia({
+      initialState: {
+        video: {
+          videos: [],
+          visibleVideos: [],
+          allVideos: [],
+          loading: false,
+          loadingMore: false,
+          error: null,
+          currentSearch: '',
+          currentGame: '',
+          page: 1,
+          hasMore: true,
+          filters: {
+            date: 'all',
+            duration: 'all',
+            views: 'all',
+            language: 'all'
+          },
+          sortBy: 'date'
+        },
+        userPreferences: {
+          autoReload: false,
+          reloadInterval: 60,
+          favorites: [],
+          history: []
+        }
       },
-      props: {
-        game: 'Minecraft'
-      }
+      stubActions: false
     })
 
-    const store = useVideoStore()
-    expect(store.searchVideosByGame).toHaveBeenCalledWith('Minecraft')
-  })
+    videoStore = useVideoStore(pinia)
+    userPreferencesStore = useUserPreferencesStore(pinia)
+    toast = useToast()
 
-  it('affiche le loader pendant le chargement', () => {
-    const wrapper = mount(VideoListView, {
+    wrapper = mount(VideoListView, {
       global: {
-        plugins: [createTestingPinia({
-          createSpy: vi.fn,
-          initialState: {
-            video: { loading: true }
-          }
-        })]
-      }
-    })
-
-    expect(wrapper.find('.mock-loading-spinner').exists()).toBe(true)
-  })
-
-  it('affiche un message d\'erreur si une erreur survient', async () => {
-    const errorMessage = 'Une erreur est survenue'
-    const wrapper = mount(VideoListView, {
-      global: {
-        plugins: [createTestingPinia({
-          createSpy: vi.fn,
-          initialState: {
-            video: { error: errorMessage }
-          }
-        })]
-      }
-    })
-
-    await wrapper.vm.$nextTick()
-    expect(wrapper.text()).toContain(errorMessage)
-  })
-
-  it('affiche la grille de vidéos quand les données sont chargées', async () => {
-    const wrapper = mount(VideoListView, {
-      global: {
-        plugins: [createTestingPinia({
-          createSpy: vi.fn,
-          initialState: {
-            video: { videos: mockVideos }
-          }
-        })]
-      }
-    })
-
-    await wrapper.vm.$nextTick()
-    const videoCards = wrapper.findAll('.grid > div')
-    expect(videoCards).toHaveLength(mockVideos.length)
-  })
-
-  it('met à jour l\'historique quand une recherche est effectuée', async () => {
-    const wrapper = mount(VideoListView, {
-      global: {
-        plugins: [createTestingPinia({
-          createSpy: vi.fn
-        })]
-      },
-      props: {
-        game: 'Minecraft'
-      }
-    })
-
-    const userPreferencesStore = useUserPreferencesStore()
-    expect(userPreferencesStore.addToHistory).toHaveBeenCalledWith('Minecraft')
-  })
-
-  it('gère correctement le rechargement automatique', async () => {
-    const wrapper = mount(VideoListView, {
-      global: {
-        plugins: [createTestingPinia({
-          createSpy: vi.fn
-        })]
-      },
-      props: {
-        game: 'Minecraft'
-      }
-    })
-
-    const store = useVideoStore()
-
-    // Avance le temps de 2 minutes
-    await vi.advanceTimersByTimeAsync(120000)
-    expect(store.searchVideosByGame).toHaveBeenCalledTimes(2) // Une fois au montage, une fois après 2 minutes
-
-    vi.useRealTimers()
-  })
-
-  it('gère correctement le scroll infini', async () => {
-    const wrapper = mount(VideoListView, {
-      global: {
-        plugins: [createTestingPinia({
-          createSpy: vi.fn,
-          initialState: {
-            video: {
-              hasMore: true,
-              loading: false,
-              loadingMore: false
+        plugins: [pinia],
+        mocks: {
+          $route: {
+            params: {
+              game: 'Minecraft'
             }
+          },
+          $router: {
+            push: vi.fn()
           }
-        })]
+        }
       }
     })
-
-    const store = useVideoStore()
-
-    const loadMoreTrigger = wrapper.find('[ref="loadMoreTrigger"]')
-    expect(loadMoreTrigger.exists()).toBe(true)
-
-    // Simule le scroll
-    await wrapper.vm.onIntersect([{ isIntersecting: true }])
-    expect(store.loadMore).toHaveBeenCalled()
   })
 
-  it('applique correctement les filtres', async () => {
-    const wrapper = mount(VideoListView, {
-      global: {
-        plugins: [createTestingPinia({
-          createSpy: vi.fn
-        })]
-      }
-    })
+  it('charge les vidéos au montage', async () => {
+    const searchSpy = vi.spyOn(videoStore, 'searchVideosByGame')
+    await wrapper.vm.$nextTick()
+    expect(searchSpy).toHaveBeenCalledWith('Minecraft')
+  })
 
-    const store = useVideoStore()
+  it('affiche un indicateur de chargement', async () => {
+    videoStore.loading = true
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.animate-spin').exists()).toBe(true)
+  })
+
+  it('affiche un message d\'erreur', async () => {
+    videoStore.error = 'Une erreur est survenue'
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.text-red-500').text()).toBe('Une erreur est survenue')
+  })
+
+  it('affiche la grille de vidéos', async () => {
+    videoStore.visibleVideos = mockVideos
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.grid').exists()).toBe(true)
+    expect(wrapper.findAll('.grid > div')).toHaveLength(2)
+  })
+
+  it('met à jour l\'historique lors d\'une recherche', async () => {
+    const addToHistorySpy = vi.spyOn(userPreferencesStore, 'addToHistory')
+    await wrapper.vm.fetchVideos()
+    expect(addToHistorySpy).toHaveBeenCalledWith('Minecraft')
+  })
+
+  it('gère le rechargement automatique', async () => {
+    const fetchSpy = vi.spyOn(wrapper.vm, 'fetchVideos')
+    vi.useFakeTimers()
     
-    await wrapper.vm.updateFilters({
-      type: 'date',
-      value: 'today'
-    })
-
-    expect(store.updateFilters).toHaveBeenCalled()
+    wrapper.vm.startAutoRefresh()
+    vi.advanceTimersByTime(120000)
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    
+    vi.advanceTimersByTime(120000)
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+    
+    vi.useRealTimers()
   })
 
-  it('applique correctement le tri', async () => {
-    const wrapper = mount(VideoListView, {
-      global: {
-        plugins: [createTestingPinia({
-          createSpy: vi.fn
-        })]
-      }
+  it('gère le scroll infini', async () => {
+    const loadMoreSpy = vi.spyOn(videoStore, 'loadMore')
+    const observer = wrapper.vm.setupIntersectionObserver()
+    
+    // Simuler l'intersection
+    observer.value?.([{ isIntersecting: true }])
+    
+    expect(loadMoreSpy).toHaveBeenCalled()
+  })
+
+  it('applique les filtres', async () => {
+    videoStore.visibleVideos = mockVideos
+    await wrapper.vm.updateFilters({
+      date: 'today',
+      duration: 'short',
+      views: 'less_100'
     })
+    expect(videoStore.filters.date).toBe('today')
+    expect(videoStore.filters.duration).toBe('short')
+    expect(videoStore.filters.views).toBe('less_100')
+  })
 
-    const store = useVideoStore()
-
+  it('applique le tri', async () => {
+    videoStore.visibleVideos = mockVideos
     await wrapper.vm.updateSort('views')
-    expect(store.updateSort).toHaveBeenCalledWith('views')
+    expect(videoStore.sortBy).toBe('views')
   })
 }) 

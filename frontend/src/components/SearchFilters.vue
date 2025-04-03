@@ -5,7 +5,8 @@
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-2">Date</label>
         <select 
-          v-model="filters.date"
+          :value="filters.date"
+          @change="(e: Event) => updateFilter('date', (e.target as HTMLSelectElement).value as VideoFilters['date'])"
           class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
           data-test="date-filter"
         >
@@ -20,7 +21,8 @@
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-2">Durée</label>
         <select 
-          v-model="filters.duration"
+          :value="filters.duration"
+          @change="(e: Event) => updateFilter('duration', (e.target as HTMLSelectElement).value as VideoFilters['duration'])"
           class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
           data-test="duration-filter"
         >
@@ -35,7 +37,8 @@
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-2">Vues</label>
         <select 
-          v-model="filters.views"
+          :value="filters.views"
+          @change="(e: Event) => updateFilter('views', (e.target as HTMLSelectElement).value as VideoFilters['views'])"
           class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
           data-test="views-filter"
         >
@@ -50,7 +53,8 @@
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-2">Langue</label>
         <select 
-          v-model="filters.language"
+          :value="filters.language"
+          @change="(e: Event) => updateFilter('language', (e.target as HTMLSelectElement).value as VideoFilters['language'])"
           class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
           data-test="language-filter"
         >
@@ -83,25 +87,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useVideoStore } from '@/stores/videoStore'
-import type { VideoFilters, SortOption } from '@/types/filters'
+import { useVideoStore } from '@/stores/video'
+import type { VideoFilters, SortOption, FilterChangeEvent } from '@/types/filters'
 
 const videoStore = useVideoStore()
 const { filters, sortBy } = storeToRefs(videoStore)
 
 const LANGUAGES = [
   { value: 'fr', label: 'Français' },
-  { value: 'en', label: 'Anglais' },
-  { value: 'es', label: 'Espagnol' },
-  { value: 'de', label: 'Allemand' },
-  { value: 'it', label: 'Italien' },
-  { value: 'pt', label: 'Portugais' },
-  { value: 'ru', label: 'Russe' },
-  { value: 'ja', label: 'Japonais' },
-  { value: 'ko', label: 'Coréen' },
-  { value: 'zh', label: 'Chinois' }
+  { value: 'en', label: 'Anglais' }
 ] as const
 
 const SORT_OPTIONS = [
@@ -111,6 +107,20 @@ const SORT_OPTIONS = [
 ] as const
 
 const updateSort = (sort: SortOption) => {
+  console.log('SearchFilters - updateSort:', sort)
   videoStore.updateSort(sort)
 }
+
+const updateFilter = (filterKey: keyof VideoFilters, value: VideoFilters[typeof filterKey]) => {
+  console.log('SearchFilters - updateFilter:', { filterKey, value })
+  videoStore.updateFilters({
+    type: filterKey,
+    value
+  } as FilterChangeEvent)
+}
+
+defineEmits<{
+  'update:filters': [FilterChangeEvent]
+  'update:sort': [SortOption]
+}>()
 </script> 

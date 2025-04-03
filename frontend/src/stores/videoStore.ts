@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia'
-import type { VideoState, VideoStoreActions, SearchParams } from '../types/video'
-import type { FilterChangeEvent, SortOption } from '../types/filters'
-import { DEFAULT_FILTERS, DEFAULT_SORT } from '../types/filters'
-import { parseDuration } from '../utils/duration'
-import { videoApi } from '@/api/config'
+import axios from 'axios'
+import { parseDuration } from '@/utils/duration'
+import type { Video, VideoState, SearchParams } from '@/types/video'
+import type { VideoFilters, SortOption } from '@/types/filters'
+import { DEFAULT_FILTERS, DEFAULT_SORT } from '@/types/filters'
 
-export const useVideoStore = defineStore<string, VideoState, {}, VideoStoreActions>('video', {
-  state: () => ({
+export const useVideoStore = defineStore('video', {
+  state: (): VideoState => ({
     videos: [],
     allVideos: [],
     visibleVideos: [],
@@ -17,16 +17,126 @@ export const useVideoStore = defineStore<string, VideoState, {}, VideoStoreActio
     currentGame: '',
     page: 1,
     hasMore: true,
-    filters: DEFAULT_FILTERS,
+    filters: { ...DEFAULT_FILTERS },
     sortBy: DEFAULT_SORT
   }),
 
+  getters: {
+    filteredVideos(state): Video[] {
+      let filtered = [...state.videos]
+
+      // Filtre par date
+      if (state.filters.date !== 'all') {
+        const now = new Date()
+        const cutoff = new Date()
+        switch (state.filters.date) {
+          case 'today':
+            cutoff.setDate(now.getDate() - 1)
+            break
+          case 'this_week':
+            cutoff.setDate(now.getDate() - 7)
+            break
+          case 'this_month':
+            cutoff.setMonth(now.getMonth() - 1)
+            break
+        }
+        filtered = filtered.filter(video => new Date(video.created_at) >= cutoff)
+      }
+
+      // Filtre par durée
+      if (state.filters.duration !== 'all') {
+        filtered = filtered.filter(video => {
+          const duration = parseDuration(video.duration)
+          switch (state.filters.duration) {
+            case 'short':
+              return duration <= 900 // 15 minutes
+            case 'medium':
+              return duration > 900 && duration <= 3600 // 15-60 minutes
+            case 'long':
+              return duration > 3600 // > 60 minutes
+            default:
+              return true
+          }
+        })
+      }
+
+      // Filtre par vues
+      if (state.filters.views !== 'all') {
+        filtered = filtered.filter(video => {
+          switch (state.filters.views) {
+            case 'less_100':
+              return video.view_count < 100
+            case '100_1000':
+              return video.view_count >= 100 && video.view_count < 1000
+            case 'more_1000':
+              return video.view_count >= 1000
+            default:
+              return true
+          }
+        })
+      }
+
+      // Filtre par langue
+      if (state.filters.language !== 'all') {
+        filtered = filtered.filter(video => video.language === state.filters.language)
+      }
+
+      // Tri
+      filtered.sort((a, b) => {
+        switch (state.sortBy) {
+          case 'date':
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          case 'views':
+            return b.view_count - a.view_count
+          case 'duration':
+            return parseDuration(b.duration) - parseDuration(a.duration)
+          default:
+            return 0
+        }
+      })
+
+      return filtered
+    }
+  },
+
   actions: {
+    updateFilters(newFilters: Partial<VideoFilters>) {
+      this.filters = {
+        ...this.filters,
+        ...newFilters
+      }
+      this.applyFilters()
+    },
+
+    updateSort(sort: SortOption) {
+      this.sortBy = sort
+      this.applyFilters()
+    },
+
+    reset() {
+      this.videos = []
+      this.allVideos = []
+      this.visibleVideos = []
+      this.loading = false
+      this.loadingMore = false
+      this.error = null
+      this.currentSearch = ''
+      this.currentGame = ''
+      this.page = 1
+      this.hasMore = true
+      this.filters = { ...DEFAULT_FILTERS }
+      this.sortBy = DEFAULT_SORT
+    },
+
+    applyFilters() {
+      this.visibleVideos = this.filteredVideos
+    },
+
     async searchVideosByGame(game_name: string) {
       try {
         this.loading = true
         this.error = null
-        const response = await videoApi.get('/api/search', {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/search`, {
           params: {
             game: game_name,
             limit: 10,
@@ -42,163 +152,68 @@ export const useVideoStore = defineStore<string, VideoState, {}, VideoStoreActio
         this.hasMore = newVideos.length === 10
         this.applyFilters()
       } catch (error) {
-        this.error = 'Erreur lors de la recherche des vidéos'
-        console.error(error)
+        console.error('Error fetching videos:', error)
+        this.error = 'Une erreur est survenue lors de la recherche des vidéos'
+        this.videos = []
+        this.allVideos = []
+        this.visibleVideos = []
       } finally {
         this.loading = false
       }
     },
 
-    async searchVideos({ game_name, limit = 10, page = 1, reset = false }: SearchParams) {
-      if (reset) {
-        this.resetSearch()
-      }
-
+    async searchVideos(params: SearchParams) {
       try {
-        this.loading = true
+        if (params.reset) {
+          this.loading = true
+          this.page = 1
+        } else {
+          this.loadingMore = true
+          this.page += 1
+        }
         this.error = null
-        const response = await videoApi.get('/api/search', {
-          params: { 
-            game: game_name,
-            limit,
-            page,
+
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/search`, {
+          params: {
+            game: params.game_name,
+            limit: params.limit || 10,
+            page: this.page,
             use_cache: true
           }
         })
-        
+
         const newVideos = response.data.videos || []
-        this.videos = reset ? newVideos : [...this.videos, ...newVideos]
-        this.allVideos = reset ? newVideos : [...this.allVideos, ...newVideos]
-        this.currentGame = game_name
-        this.currentSearch = game_name
-        this.hasMore = newVideos.length === limit
-        
+        this.videos = params.reset ? newVideos : [...this.videos, ...newVideos]
+        this.allVideos = params.reset ? newVideos : [...this.allVideos, ...newVideos]
+        this.currentGame = params.game_name
+        this.currentSearch = params.game_name
+        this.hasMore = newVideos.length === (params.limit || 10)
         this.applyFilters()
       } catch (error) {
-        this.error = 'Erreur lors de la recherche des vidéos'
-        console.error(error)
+        console.error('Error fetching videos:', error)
+        this.error = 'Une erreur est survenue lors du chargement des vidéos'
+        if (params.reset) {
+          this.videos = []
+          this.allVideos = []
+          this.visibleVideos = []
+        }
       } finally {
-        this.loading = false
-      }
-    },
-
-    async loadMore(): Promise<void> {
-      if (!this.loading && !this.loadingMore && this.hasMore) {
-        this.loadingMore = true
-        try {
-          this.page++
-          await this.searchVideos({
-            game_name: this.currentSearch,
-            page: this.page
-          })
-        } finally {
+        if (params.reset) {
+          this.loading = false
+        } else {
           this.loadingMore = false
         }
       }
     },
 
-    resetSearch(): void {
-      this.videos = []
-      this.allVideos = []
-      this.visibleVideos = []
-      this.page = 1
-      this.hasMore = true
-      this.currentSearch = ''
-      this.currentGame = ''
-      this.error = null
-      this.filters = DEFAULT_FILTERS
-      this.sortBy = DEFAULT_SORT
-    },
+    async loadMore() {
+      if (this.loading || this.loadingMore || !this.hasMore) return
 
-    updateFilters(event: FilterChangeEvent): void {
-      this.filters = {
-        ...this.filters,
-        [event.type]: event.value
-      }
-      this.applyFilters()
-    },
-
-    updateSort(sortBy: SortOption): void {
-      this.sortBy = sortBy
-      this.applyFilters()
-    },
-
-    applyFilters(): void {
-      let filtered = [...this.allVideos]
-
-      // Filtre par date
-      if (this.filters.date !== 'all') {
-        const now = new Date()
-        filtered = filtered.filter(video => {
-          const videoDate = new Date(video.created_at)
-          switch (this.filters.date) {
-            case 'today':
-              return videoDate.toDateString() === now.toDateString()
-            case 'this_week':
-              const weekAgo = new Date(now.setDate(now.getDate() - 7))
-              return videoDate >= weekAgo
-            case 'this_month':
-              const monthAgo = new Date(now.setMonth(now.getMonth() - 1))
-              return videoDate >= monthAgo
-            default:
-              return true
-          }
-        })
-      }
-
-      // Filtre par durée
-      if (this.filters.duration !== 'all') {
-        filtered = filtered.filter(video => {
-          const duration = parseDuration(video.duration)
-          switch (this.filters.duration) {
-            case 'short':
-              return duration <= 900 // 15 minutes
-            case 'medium':
-              return duration > 900 && duration <= 3600 // 15-60 minutes
-            case 'long':
-              return duration > 3600 // > 60 minutes
-            default:
-              return true
-          }
-        })
-      }
-
-      // Filtre par vues
-      if (this.filters.views !== 'all') {
-        filtered = filtered.filter(video => {
-          switch (this.filters.views) {
-            case 'less_100':
-              return video.view_count < 100
-            case '100_1000':
-              return video.view_count >= 100 && video.view_count < 1000
-            case 'more_1000':
-              return video.view_count >= 1000
-            default:
-              return true
-          }
-        })
-      }
-
-      // Filtre par langue
-      if (this.filters.language !== 'all') {
-        filtered = filtered.filter(video => video.language === this.filters.language)
-      }
-
-      // Tri
-      filtered.sort((a, b) => {
-        switch (this.sortBy) {
-          case 'date':
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          case 'views':
-            return b.view_count - a.view_count
-          case 'duration':
-            return parseDuration(b.duration) - parseDuration(a.duration)
-          default:
-            return 0
-        }
+      await this.searchVideos({
+        game_name: this.currentGame,
+        limit: 10,
+        reset: false
       })
-
-      this.visibleVideos = filtered
     }
   }
 }) 

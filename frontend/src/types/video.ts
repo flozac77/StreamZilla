@@ -60,4 +60,9 @@ export interface VideoStoreActions {
   updateFilters(event: FilterChangeEvent): void
   updateSort(sortBy: SortOption): void
   applyFilters(): void
+}
+
+export interface VideoStoreGetters {
+  [key: string]: any
+  filteredVideos: (state: VideoState) => Video[]
 } 

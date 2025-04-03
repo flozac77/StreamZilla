@@ -100,13 +100,15 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, onUnmounted, defineExpose } from 'vue'
 import { useRoute } from 'vue-router'
-import { useVideoStore } from '../stores/videoStore'
-import { useUserPreferencesStore } from '../stores/userPreferences'
-import SearchFilters from '../components/SearchFilters.vue'
-import UserPreferences from '../components/UserPreferences.vue'
-import LoadingSpinner from '../components/LoadingSpinner.vue'
+import { useVideoStore } from '@/stores/video'
+import { useUserPreferencesStore } from '@/stores/userPreferences'
+import SearchFilters from '@/components/SearchFilters.vue'
+import UserPreferences from '@/components/UserPreferences.vue'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useIntersectionObserver } from '@vueuse/core'
 import { useToast } from 'vue-toastification'
+import type { FilterChangeEvent, SortOption } from '@/types/filters'
+import axios from 'axios'
 
 const route = useRoute()
 const videoStore = useVideoStore()
@@ -120,20 +122,14 @@ const loading = ref(false)
 const error = ref('')
 const refreshInterval = ref<number | null>(null)
 
-// Filtres et tri
-const activeFilters = ref({
-  date: 'all',
-  duration: 'all',
-  views: 'all'
-})
-const activeSort = ref('date')
-
-const updateFilters = (newFilters: any) => {
-  activeFilters.value = newFilters
+const updateFilters = (event: FilterChangeEvent) => {
+  console.log('VideoListView - updateFilters:', event)
+  videoStore.updateFilters(event)
 }
 
-const updateSort = (newSort: string) => {
-  activeSort.value = newSort
+const updateSort = (sortBy: SortOption) => {
+  console.log('VideoListView - updateSort:', sortBy)
+  videoStore.updateSort(sortBy)
 }
 
 // Configuration de l'Intersection Observer avec des options plus sensibles
@@ -162,12 +158,17 @@ const fetchVideos = async () => {
   try {
     loading.value = true
     error.value = ''
+    console.log('Début de la recherche pour:', game.value)
     await videoStore.searchVideosByGame(game.value)
     addToHistory(game.value)
   } catch (e) {
-    error.value = "Une erreur est survenue lors du chargement des vidéos"
+    console.error('Erreur détaillée dans fetchVideos:', e)
+    if (axios.isAxiosError(e) && e.response) {
+      error.value = `Erreur: ${e.response.data.message || 'Une erreur est survenue lors du chargement des vidéos'}`
+    } else {
+      error.value = "Une erreur est survenue lors du chargement des vidéos"
+    }
     toast.error(error.value)
-    console.error('Erreur dans fetchVideos:', e)
   } finally {
     loading.value = false
   }
@@ -175,13 +176,11 @@ const fetchVideos = async () => {
 
 // Réessayer en cas d'erreur
 const retrySearch = () => {
-  videoStore.resetSearch()
   fetchVideos()
 }
 
 // Initialisation
 onMounted(() => {
-  videoStore.resetSearch() // S'assure qu'on part d'un état propre
   fetchVideos()
   setupIntersectionObserver()
   startAutoRefresh()
@@ -207,7 +206,6 @@ const stopAutoRefresh = () => {
 watch(() => route.params.game, (newGame) => {
   if (newGame && newGame !== game.value) {
     game.value = newGame as string
-    videoStore.resetSearch()
     fetchVideos()
     startAutoRefresh()
   }
