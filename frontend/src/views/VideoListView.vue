@@ -1,23 +1,38 @@
 <template>
   <div class="container mx-auto px-4 py-8">
-    <!-- Filtres -->
+    <!-- Search bar -->
+    <div class="mb-8">
+      <input
+        type="text"
+        v-model="searchQuery"
+        @keyup.enter="handleSearch"
+        placeholder="Search for a game..."
+        class="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500"
+        data-test="search-input"
+      />
+    </div>
+
+    <!-- Filters -->
     <SearchFilters
       @update:filters="updateFilters"
       @update:sort="updateSort"
     />
 
     <div v-if="loading" class="flex justify-center items-center h-64">
-      <div class="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-purple-500"></div>
+      <LoadingSpinner message="Loading videos..." />
     </div>
     
     <div v-else-if="error" class="text-center text-red-500">
       {{ error }}
+      <button @click="retrySearch" class="ml-2 text-blue-500 hover:underline">
+        Retry
+      </button>
     </div>
     
     <div v-else>
       <div class="flex justify-between items-center mb-8">
         <h1 class="text-3xl font-bold text-white">
-          Vidéos {{ game }}
+          {{ game }} Videos
         </h1>
         <button
           @click="toggleFavoriteWithNotification(game)"
@@ -31,23 +46,28 @@
           <span class="material-icons">
             {{ isFavorite(game) ? 'favorite' : 'favorite_border' }}
           </span>
-          {{ isFavorite(game) ? 'Retirer des favoris' : 'Ajouter aux favoris' }}
+          {{ isFavorite(game) ? 'Remove from favorites' : 'Add to favorites' }}
         </button>
       </div>
 
-      <!-- Composant UserPreferences -->
+      <!-- User Preferences Component -->
       <UserPreferences class="mb-8" />
       
-      <!-- Grille de vidéos -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Video Grid -->
+      <div v-if="videoStore.visibleVideos.length === 0" class="text-center text-gray-500">
+        No videos found
+      </div>
+      
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-test="video-grid">
         <div v-for="video in videoStore.visibleVideos" :key="video.id" 
-             class="bg-gray-800 rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
+             class="bg-gray-800 rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
+             data-test="video-card">
           <div class="relative group">
             <img :src="`https://static-cdn.jtvnw.net/previews-ttv/live_user_${video.user_name.toLowerCase()}-640x360.jpg`"
                  :alt="video.title"
                  class="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105">
             
-            <!-- Overlay au survol -->
+            <!-- Hover Overlay -->
             <div class="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
               <div class="text-white text-center">
                 <span class="bg-purple-600 px-2 py-1 rounded text-sm">
@@ -60,38 +80,28 @@
           <div class="p-4">
             <h2 class="text-xl font-semibold mb-2 line-clamp-2 text-white">{{ video.title }}</h2>
             <p class="text-purple-400 mb-2">{{ video.user_name }}</p>
-            <p class="text-gray-400 text-sm">{{ formatViews(video.view_count) }} vues • {{ formatDuration(video.duration) }}</p>
+            <p class="text-gray-400 text-sm">{{ formatViews(video.view_count) }} views • {{ formatDuration(video.duration) }}</p>
           </div>
           
           <div class="px-4 pb-4">
             <a :href="video.url" 
                target="_blank"
                class="inline-block bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-300">
-              Voir sur Twitch
+              Watch on Twitch
             </a>
           </div>
         </div>
       </div>
 
-      <!-- Loader et trigger pour le scrolling infini -->
+      <!-- Loader and infinite scroll trigger -->
       <div ref="loadMoreTrigger" 
            class="flex justify-center py-8 mt-4">
         <template v-if="videoStore.loading || videoStore.loadingMore">
-          <LoadingSpinner :message="videoStore.loadingMore ? 'Chargement de plus de vidéos...' : 'Chargement des vidéos...'" />
+          <LoadingSpinner :message="videoStore.loadingMore ? 'Loading more videos...' : 'Loading videos...'" />
         </template>
         <template v-else-if="!videoStore.hasMore && videoStore.visibleVideos.length > 0">
-          <p class="text-gray-500">Plus de vidéos disponibles</p>
+          <p class="text-gray-500">No more videos available</p>
         </template>
-      </div>
-
-      <!-- Message d'erreur -->
-      <div v-if="videoStore.error" 
-           class="text-center py-4 text-red-500">
-        {{ videoStore.error }}
-        <button @click="retrySearch" 
-                class="ml-2 text-blue-500 hover:underline">
-          Réessayer
-        </button>
       </div>
     </div>
   </div>
@@ -121,6 +131,14 @@ const game = ref(route.params.game as string)
 const loading = ref(false)
 const error = ref('')
 const refreshInterval = ref<number | null>(null)
+const searchQuery = ref(game.value || '')
+
+const handleSearch = () => {
+  if (searchQuery.value.trim()) {
+    game.value = searchQuery.value.trim()
+    fetchVideos()
+  }
+}
 
 const updateFilters = (event: FilterChangeEvent) => {
   console.log('VideoListView - updateFilters:', event)
@@ -140,7 +158,7 @@ const setupIntersectionObserver = () => {
     loadMoreTrigger,
     ([entry]) => {
       if (entry.isIntersecting && !videoStore.loading && !videoStore.loadingMore) {
-        console.log('🔄 Intersection détectée, chargement de plus de vidéos...')
+        console.log('🔄 Intersection detected, loading more videos...')
         videoStore.loadMore()
       }
     },
@@ -158,15 +176,15 @@ const fetchVideos = async () => {
   try {
     loading.value = true
     error.value = ''
-    console.log('Début de la recherche pour:', game.value)
+    console.log('Starting search for:', game.value)
     await videoStore.searchVideosByGame(game.value)
     addToHistory(game.value)
   } catch (e) {
-    console.error('Erreur détaillée dans fetchVideos:', e)
+    console.error('Detailed error in fetchVideos:', e)
     if (axios.isAxiosError(e) && e.response) {
-      error.value = `Erreur: ${e.response.data.message || 'Une erreur est survenue lors du chargement des vidéos'}`
+      error.value = `Error: ${e.response.data.message || 'An error occurred while loading videos'}`
     } else {
-      error.value = "Une erreur est survenue lors du chargement des vidéos"
+      error.value = "An error occurred while loading videos"
     }
     toast.error(error.value)
   } finally {
@@ -190,7 +208,7 @@ onMounted(() => {
 const startAutoRefresh = () => {
   stopAutoRefresh()
   refreshInterval.value = window.setInterval(() => {
-    console.log('Rechargement automatique des vidéos...')
+    console.log('Auto-refreshing videos...')
     fetchVideos()
   }, 120000)
 }
@@ -219,8 +237,8 @@ onUnmounted(() => {
 const toggleFavoriteWithNotification = (game: string) => {
   toggleFavorite(game)
   const message = isFavorite(game) 
-    ? `${game} a été ajouté aux favoris`
-    : `${game} a été retiré des favoris`
+    ? `${game} has been added to favorites`
+    : `${game} has been removed from favorites`
   toast.success(message)
 }
 
@@ -256,6 +274,8 @@ defineExpose({
   retrySearch,
   toggleFavoriteWithNotification,
   formatViews,
-  formatDuration
+  formatDuration,
+  searchQuery,
+  handleSearch
 })
 </script> 

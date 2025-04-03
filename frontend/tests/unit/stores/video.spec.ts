@@ -2,18 +2,24 @@ import { setActivePinia, createPinia } from 'pinia'
 import { useVideoStore } from '../../../src/stores/video'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Video } from '../../../src/types/video'
+import { createTestingPinia } from '@pinia/testing'
 
 describe('Video Store', () => {
+  let store
+  let pinia
+
   beforeEach(() => {
-    setActivePinia(createPinia())
+    pinia = createTestingPinia({
+      createSpy: vi.fn,
+      stubActions: false
+    })
+    store = useVideoStore()
   })
 
   it('initializes with default values', () => {
-    const store = useVideoStore()
-    expect(store.allVideos).toEqual([])
-    expect(store.visibleVideos).toEqual([])
+    expect(store.videos).toEqual([])
     expect(store.loading).toBe(false)
-    expect(store.error).toBe(null)
+    expect(store.error).toBeNull()
     expect(store.filters).toEqual({
       date: 'all',
       duration: 'all',
@@ -24,7 +30,6 @@ describe('Video Store', () => {
   })
 
   it('updates filters', () => {
-    const store = useVideoStore()
     store.updateFilters({
       date: 'today',
       duration: 'short',
@@ -40,16 +45,13 @@ describe('Video Store', () => {
   })
 
   it('updates sort', () => {
-    const store = useVideoStore()
     store.updateSort('views')
     expect(store.sortBy).toBe('views')
   })
 
   it('resets store state', () => {
-    const store = useVideoStore()
     store.resetSearch()
-    expect(store.allVideos).toEqual([])
-    expect(store.visibleVideos).toEqual([])
+    expect(store.videos).toEqual([])
     expect(store.loading).toBe(false)
     expect(store.error).toBe(null)
     expect(store.filters).toEqual({
@@ -98,8 +100,7 @@ describe('Video Store', () => {
 
     beforeEach(() => {
       store = useVideoStore()
-      store.allVideos = mockVideos
-      store.visibleVideos = mockVideos
+      store.videos = mockVideos
     })
 
     it('should filter videos by date', () => {
@@ -189,8 +190,7 @@ describe('Video Store', () => {
       await store.searchVideosByGame('Minecraft')
       expect(store.loading).toBe(false)
       expect(store.error).toBe("An error has occurred")
-      expect(store.allVideos.length).toBe(2)
-      expect(store.visibleVideos.length).toBe(2)
+      expect(store.videos.length).toBe(2)
       expect(store.currentGame).toBe('Minecraft')
     })
 
@@ -199,12 +199,10 @@ describe('Video Store', () => {
         searchVideosByGame: vi.fn().mockRejectedValue(new Error('Test error'))
       }))
       
-      store = useVideoStore()
       await store.searchVideosByGame('Minecraft')
       expect(store.loading).toBe(false)
       expect(store.error).toBe('Une erreur est survenue')
-      expect(store.allVideos).toEqual([])
-      expect(store.visibleVideos).toEqual([])
+      expect(store.videos).toEqual([])
     })
   })
 }) 

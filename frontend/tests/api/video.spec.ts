@@ -78,7 +78,7 @@ describe('Video API', () => {
             game: 'Minecraft'
           }
         })
-        // Si on arrive ici, le test doit échouer
+        // If we get here, the test should fail
         expect(true).toBe(false)
       } catch (error) {
         expect(error.response.status).toBe(500)
@@ -91,7 +91,7 @@ describe('Video API', () => {
 
       try {
         await videoApi.get('/api/search')
-        // Si on arrive ici, le test doit échouer
+        // If we get here, the test should fail
         expect(true).toBe(false)
       } catch (error) {
         expect(error.message).toContain('Network Error')
@@ -103,7 +103,7 @@ describe('Video API', () => {
 
       try {
         await videoApi.get('/api/search')
-        // Si on arrive ici, le test doit échouer
+        // If we get here, the test should fail
         expect(true).toBe(false)
       } catch (error) {
         expect(error.message).toContain('timeout')

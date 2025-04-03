@@ -4,11 +4,24 @@ import { createTestingPinia } from '@pinia/testing'
 import axios from 'axios'
 import MockAdapter from 'axios-mock-adapter'
 
+// Mock du routeur
+vi.mock('vue-router', () => ({
+  useRoute: () => ({
+    params: { game: 'test-game' },
+    query: {},
+    path: '/'
+  }),
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn()
+  })
+}))
+
 // Configuration globale de Vue Test Utils
 config.global.mocks = {
   $t: (key: string) => key,
   $route: {
-    params: {},
+    params: { game: 'test-game' },
     query: {},
     path: '/'
   },
@@ -57,4 +70,4 @@ afterEach(() => {
 })
 
 // Export des utilitaires de test
-export { mockAxios } 
+export { mockAxios, pinia } 

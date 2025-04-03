@@ -103,16 +103,6 @@ async def health_check():
 async def root():
     return {"message": "VisioBrain API is running"}
 
-@app.on_event("startup")
-async def startup_event():
-    logger.info("Starting up the application...")
-    # Autres initialisations...
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Shutting down the application...")
-    # Nettoyage...
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)  # reload=True pour le hot reload 

@@ -23,23 +23,23 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
 
   getters: {
     filteredVideos(): Video[] {
-      console.log('Début du filtrage, nombre total de vidéos:', this.allVideos.length)
+      console.log('Starting filtering, total videos:', this.allVideos.length)
       let filtered = [...this.allVideos]
 
-      // Filtre par langue
+      // Language filter
       if (this.filters.language !== 'all') {
-        console.log('Filtrage par langue:', this.filters.language)
+        console.log('Filtering by language:', this.filters.language)
         filtered = filtered.filter(video => {
           const matches = video.language === this.filters.language
-          console.log(`Vidéo ${video.id || 'unknown'}: langue=${video.language}, match=${matches}`)
+          console.log(`Video ${video.id || 'unknown'}: language=${video.language}, match=${matches}`)
           return matches
         })
-        console.log('Vidéos après filtre langue:', filtered.length)
+        console.log('Videos after language filter:', filtered.length)
       }
 
-      // Filtre par date
+      // Date filter
       if (this.filters.date !== 'all') {
-        console.log('Filtrage par date:', this.filters.date)
+        console.log('Filtering by date:', this.filters.date)
         const now = new Date()
         filtered = filtered.filter(video => {
           const videoDate = new Date(video.created_at)
@@ -61,15 +61,15 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
             default:
               matches = true
           }
-          console.log(`Vidéo ${video.id || 'unknown'}: date=${video.created_at}, match=${matches}`)
+          console.log(`Video ${video.id || 'unknown'}: date=${video.created_at}, match=${matches}`)
           return matches
         })
-        console.log('Vidéos après filtre date:', filtered.length)
+        console.log('Videos after date filter:', filtered.length)
       }
 
-      // Filtre par durée
+      // Duration filter
       if (this.filters.duration !== 'all') {
-        console.log('Filtrage par durée:', this.filters.duration)
+        console.log('Filtering by duration:', this.filters.duration)
         filtered = filtered.filter(video => {
           const duration = parseDuration(video.duration)
           let matches = false
@@ -86,15 +86,15 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
             default:
               matches = true
           }
-          console.log(`Vidéo ${video.id || 'unknown'}: durée=${video.duration}, match=${matches}`)
+          console.log(`Video ${video.id || 'unknown'}: duration=${video.duration}, match=${matches}`)
           return matches
         })
-        console.log('Vidéos après filtre durée:', filtered.length)
+        console.log('Videos after duration filter:', filtered.length)
       }
 
-      // Filtre par vues
+      // Views filter
       if (this.filters.views !== 'all') {
-        console.log('Filtrage par vues:', this.filters.views)
+        console.log('Filtering by views:', this.filters.views)
         filtered = filtered.filter(video => {
           let matches = false
           switch (this.filters.views) {
@@ -110,14 +110,14 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
             default:
               matches = true
           }
-          console.log(`Vidéo ${video.id || 'unknown'}: vues=${video.view_count}, match=${matches}`)
+          console.log(`Video ${video.id || 'unknown'}: views=${video.view_count}, match=${matches}`)
           return matches
         })
-        console.log('Vidéos après filtre vues:', filtered.length)
+        console.log('Videos after views filter:', filtered.length)
       }
 
-      // Tri
-      console.log('Application du tri:', this.sortBy)
+      // Sort
+      console.log('Applying sort:', this.sortBy)
       filtered.sort((a, b) => {
         switch (this.sortBy) {
           case 'date':
@@ -131,34 +131,34 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
         }
       })
 
-      console.log('Nombre final de vidéos filtrées:', filtered.length)
+      console.log('Final filtered videos count:', filtered.length)
       return filtered
     }
   },
 
   actions: {
     updateFilters(event: FilterChangeEvent): void {
-      console.log('updateFilters appelé avec:', event)
+      console.log('updateFilters called with:', event)
       this.filters = {
         ...this.filters,
         [event.type]: event.value
       }
-      console.log('Nouveaux filtres:', this.filters)
+      console.log('New filters:', this.filters)
       this.applyFilters()
     },
 
     updateSort(sortBy: SortOption): void {
-      console.log('updateSort appelé avec:', sortBy)
+      console.log('updateSort called with:', sortBy)
       this.sortBy = sortBy
       this.applyFilters()
     },
 
     applyFilters(): void {
-      console.log('applyFilters appelé')
-      console.log('Filtres actuels:', this.filters)
-      console.log('Nombre de vidéos avant filtrage:', this.allVideos.length)
+      console.log('applyFilters called')
+      console.log('Current filters:', this.filters)
+      console.log('Videos count before filtering:', this.allVideos.length)
       this.visibleVideos = this.filteredVideos
-      console.log('Nombre de vidéos après filtrage:', this.visibleVideos.length)
+      console.log('Videos count after filtering:', this.visibleVideos.length)
     },
 
     async searchVideosByGame(game_name: string): Promise<void> {
@@ -179,7 +179,11 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
       
       try {
         const response = await searchApi(game_name)
-        const newVideos = response.data.videos || []
+        const newVideos = response.data.videos
+        if (!newVideos) {
+          throw new Error('No videos in response')
+        }
+        
         this.videos = reset ? newVideos : [...this.videos, ...newVideos]
         this.allVideos = reset ? newVideos : [...this.allVideos, ...newVideos]
         this.currentGame = game_name
@@ -187,8 +191,8 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
         this.hasMore = newVideos.length === limit
         this.applyFilters()
       } catch (error) {
-        console.error('Erreur lors de la recherche:', error)
-        this.error = 'Une erreur est survenue'
+        console.error('Error during search:', error)
+        this.error = 'An error occurred while searching for videos'
         this.allVideos = []
         this.visibleVideos = []
       } finally {

@@ -7,26 +7,26 @@ router = APIRouter(prefix="/api/search", tags=["search"])
 
 @router.get("/", response_model=TwitchSearchResult)
 async def search_videos(
-    game: str = Query(..., description="Nom du jeu à rechercher"),
-    limit: int = Query(24, ge=1, le=100, description="Nombre de résultats par page"),
-    page: int = Query(1, ge=1, description="Numéro de page"),
-    use_cache: bool = Query(True, description="Utiliser le cache")
+    game: str = Query(..., description="Game name to search for"),
+    limit: int = Query(24, ge=1, le=100, description="Number of results per page"),
+    page: int = Query(1, ge=1, description="Page number"),
+    use_cache: bool = Query(True, description="Use cache")
 ):
     """
-    Recherche des vidéos pour un jeu spécifique.
-    - Supporte la pagination
-    - Cache configurable
-    - Limite de résultats paramétrable
+    Search videos for a specific game.
+    - Supports pagination
+    - Configurable cache
+    - Configurable result limit
     """
     try:
-        # Initialiser le service Twitch
+        # Initialize Twitch service
         twitch_service = TwitchService()
         
         try:
-            # Calculer l'offset pour la pagination
+            # Calculate pagination offset
             offset = (page - 1) * limit
             
-            # Rechercher les vidéos
+            # Search videos
             result = await twitch_service.search_videos_by_game(
                 game_name=game,
                 limit=limit,
@@ -35,11 +35,11 @@ async def search_videos(
             )
             return result
         finally:
-            # S'assurer de fermer le client
+            # Ensure client is closed
             await twitch_service.close()
 
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Erreur lors de la recherche des vidéos: {str(e)}"
+            detail=f"Error while searching videos: {str(e)}"
         ) 

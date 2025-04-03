@@ -6,7 +6,7 @@ import { useVideoStore } from '@/stores/videoStore'
 import { useUserPreferencesStore } from '@/stores/userPreferencesStore'
 import { useToast } from 'vue-toastification'
 
-// Mock des composants
+// Mock components
 vi.mock('@/components/SearchFilters.vue', () => ({
   default: {
     name: 'SearchFilters',
@@ -119,38 +119,38 @@ describe('VideoListView', () => {
     })
   })
 
-  it('charge les vidéos au montage', async () => {
+  it('loads videos on mount', async () => {
     const searchSpy = vi.spyOn(videoStore, 'searchVideosByGame')
     await wrapper.vm.$nextTick()
     expect(searchSpy).toHaveBeenCalledWith('Minecraft')
   })
 
-  it('affiche un indicateur de chargement', async () => {
+  it('displays loading indicator', async () => {
     videoStore.loading = true
     await wrapper.vm.$nextTick()
     expect(wrapper.find('.animate-spin').exists()).toBe(true)
   })
 
-  it('affiche un message d\'erreur', async () => {
-    videoStore.error = 'Une erreur est survenue'
+  it('displays error message', async () => {
+    videoStore.error = 'An error occurred'
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.text-red-500').text()).toBe('Une erreur est survenue')
+    expect(wrapper.find('.text-red-500').text()).toBe('An error occurred')
   })
 
-  it('affiche la grille de vidéos', async () => {
+  it('displays video grid', async () => {
     videoStore.visibleVideos = mockVideos
     await wrapper.vm.$nextTick()
     expect(wrapper.find('.grid').exists()).toBe(true)
     expect(wrapper.findAll('.grid > div')).toHaveLength(2)
   })
 
-  it('met à jour l\'historique lors d\'une recherche', async () => {
+  it('updates history on search', async () => {
     const addToHistorySpy = vi.spyOn(userPreferencesStore, 'addToHistory')
     await wrapper.vm.fetchVideos()
     expect(addToHistorySpy).toHaveBeenCalledWith('Minecraft')
   })
 
-  it('gère le rechargement automatique', async () => {
+  it('handles auto-refresh', async () => {
     const fetchSpy = vi.spyOn(wrapper.vm, 'fetchVideos')
     vi.useFakeTimers()
     
@@ -164,17 +164,17 @@ describe('VideoListView', () => {
     vi.useRealTimers()
   })
 
-  it('gère le scroll infini', async () => {
+  it('handles infinite scroll', async () => {
     const loadMoreSpy = vi.spyOn(videoStore, 'loadMore')
     const observer = wrapper.vm.setupIntersectionObserver()
     
-    // Simuler l'intersection
+    // Simulate intersection
     observer.value?.([{ isIntersecting: true }])
     
     expect(loadMoreSpy).toHaveBeenCalled()
   })
 
-  it('applique les filtres', async () => {
+  it('applies filters', async () => {
     videoStore.visibleVideos = mockVideos
     await wrapper.vm.updateFilters({
       date: 'today',
@@ -186,7 +186,7 @@ describe('VideoListView', () => {
     expect(videoStore.filters.views).toBe('less_100')
   })
 
-  it('applique le tri', async () => {
+  it('applies sorting', async () => {
     videoStore.visibleVideos = mockVideos
     await wrapper.vm.updateSort('views')
     expect(videoStore.sortBy).toBe('views')

@@ -1,47 +1,47 @@
 import { test, expect } from '@playwright/test'
 
-test.describe('Recherche de vidéos', () => {
+test.describe('Video Search', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
   })
 
-  test('doit afficher la barre de recherche', async ({ page }) => {
-    await expect(page.getByPlaceholder('Rechercher un jeu...')).toBeVisible()
+  test('should display search bar', async ({ page }) => {
+    await expect(page.getByPlaceholder('Search for a game...')).toBeVisible()
   })
 
-  test('doit afficher les filtres', async ({ page }) => {
+  test('should display filters', async ({ page }) => {
     await expect(page.getByTestId('date-filter')).toBeVisible()
     await expect(page.getByTestId('duration-filter')).toBeVisible()
     await expect(page.getByTestId('views-filter')).toBeVisible()
     await expect(page.getByTestId('language-filter')).toBeVisible()
   })
 
-  test('doit effectuer une recherche', async ({ page }) => {
-    const searchInput = page.getByPlaceholder('Rechercher un jeu...')
+  test('should perform a search', async ({ page }) => {
+    const searchInput = page.getByPlaceholder('Search for a game...')
     await searchInput.fill('Minecraft')
     await searchInput.press('Enter')
     
-    // Attendre que les résultats s'affichent
+    // Wait for results to display
     await expect(page.getByTestId('video-grid')).toBeVisible()
     
-    // Vérifier qu'au moins une vidéo est affichée
+    // Check that at least one video is displayed
     const videos = page.getByTestId('video-card')
     await expect(videos.first()).toBeVisible()
   })
 
-  test('doit filtrer les résultats', async ({ page }) => {
-    // Effectuer une recherche
-    const searchInput = page.getByPlaceholder('Rechercher un jeu...')
+  test('should filter results', async ({ page }) => {
+    // Perform a search
+    const searchInput = page.getByPlaceholder('Search for a game...')
     await searchInput.fill('Minecraft')
     await searchInput.press('Enter')
 
-    // Appliquer un filtre de date
+    // Apply a date filter
     await page.getByTestId('date-today').click()
     
-    // Vérifier que le filtre est appliqué
+    // Check that the filter is applied
     await expect(page.getByTestId('date-today')).toHaveClass(/active/)
     
-    // Vérifier que la grille est mise à jour
+    // Check that the grid is updated
     await expect(page.getByTestId('video-grid')).toBeVisible()
   })
 }) 

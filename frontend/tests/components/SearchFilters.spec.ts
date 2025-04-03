@@ -32,38 +32,38 @@ describe('SearchFilters', () => {
     })
   })
 
-  it('affiche toutes les sections de filtres', () => {
+  it('displays all filter sections', () => {
     expect(wrapper.find('[data-test="date-filter"]').exists()).toBe(true)
     expect(wrapper.find('[data-test="duration-filter"]').exists()).toBe(true)
     expect(wrapper.find('[data-test="views-filter"]').exists()).toBe(true)
     expect(wrapper.find('[data-test="language-filter"]').exists()).toBe(true)
   })
 
-  it('met à jour le filtre de date', async () => {
+  it('updates date filter', async () => {
     const select = wrapper.find('[data-test="date-filter"]')
     await select.setValue('this_week')
     expect(store.filters.date).toBe('this_week')
   })
 
-  it('met à jour le filtre de durée', async () => {
+  it('updates duration filter', async () => {
     const select = wrapper.find('[data-test="duration-filter"]')
     await select.setValue('short')
     expect(store.filters.duration).toBe('short')
   })
 
-  it('met à jour le filtre de vues', async () => {
+  it('updates views filter', async () => {
     const select = wrapper.find('[data-test="views-filter"]')
     await select.setValue('less_100')
     expect(store.filters.views).toBe('less_100')
   })
 
-  it('met à jour le filtre de langue', async () => {
+  it('updates language filter', async () => {
     const select = wrapper.find('[data-test="language-filter"]')
     await select.setValue('fr')
     expect(store.filters.language).toBe('fr')
   })
 
-  it('met à jour le tri', async () => {
+  it('updates sorting', async () => {
     const buttons = wrapper.findAll('[data-test="sort-button"]')
     const dateButton = buttons[0]
     const viewsButton = buttons[1]
@@ -85,7 +85,7 @@ describe('SearchFilters', () => {
     expect(durationButton.classes()).toContain('bg-gray-700')
   })
 
-  it('réinitialise les filtres lors du changement de jeu', async () => {
+  it('resets filters on game change', async () => {
     store.updateFilters({
       date: 'this_week',
       duration: 'short',

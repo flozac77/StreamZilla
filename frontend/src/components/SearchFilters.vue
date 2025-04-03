@@ -10,55 +10,55 @@
           class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
           data-test="date-filter"
         >
-          <option value="all">Toutes les dates</option>
-          <option value="today">Aujourd'hui</option>
-          <option value="this_week">Cette semaine</option>
-          <option value="this_month">Ce mois</option>
+          <option value="all">All dates</option>
+          <option value="today">Today</option>
+          <option value="this_week">This week</option>
+          <option value="this_month">This month</option>
         </select>
       </div>
 
-      <!-- Durée -->
+      <!-- Duration -->
       <div>
-        <label class="block text-sm font-medium text-gray-300 mb-2">Durée</label>
+        <label class="block text-sm font-medium text-gray-300 mb-2">Duration</label>
         <select 
           :value="filters.duration"
           @change="(e: Event) => updateFilter('duration', (e.target as HTMLSelectElement).value as VideoFilters['duration'])"
           class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
           data-test="duration-filter"
         >
-          <option value="all">Toutes les durées</option>
-          <option value="short">Moins de 15 minutes</option>
+          <option value="all">All durations</option>
+          <option value="short">Less than 15 minutes</option>
           <option value="medium">15-60 minutes</option>
-          <option value="long">Plus de 60 minutes</option>
+          <option value="long">More than 60 minutes</option>
         </select>
       </div>
 
-      <!-- Vues -->
+      <!-- Views -->
       <div>
-        <label class="block text-sm font-medium text-gray-300 mb-2">Vues</label>
+        <label class="block text-sm font-medium text-gray-300 mb-2">Views</label>
         <select 
           :value="filters.views"
           @change="(e: Event) => updateFilter('views', (e.target as HTMLSelectElement).value as VideoFilters['views'])"
           class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
           data-test="views-filter"
         >
-          <option value="all">Toutes les vues</option>
-          <option value="less_100">Moins de 100</option>
+          <option value="all">All views</option>
+          <option value="less_100">Less than 100</option>
           <option value="100_1000">100-1000</option>
-          <option value="more_1000">Plus de 1000</option>
+          <option value="more_1000">More than 1000</option>
         </select>
       </div>
 
-      <!-- Langue -->
+      <!-- Language -->
       <div>
-        <label class="block text-sm font-medium text-gray-300 mb-2">Langue</label>
+        <label class="block text-sm font-medium text-gray-300 mb-2">Language</label>
         <select 
           :value="filters.language"
           @change="(e: Event) => updateFilter('language', (e.target as HTMLSelectElement).value as VideoFilters['language'])"
           class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
           data-test="language-filter"
         >
-          <option value="all">Toutes les langues</option>
+          <option value="all">All languages</option>
           <option v-for="lang in LANGUAGES" :key="lang.value" :value="lang.value">
             {{ lang.label }}
           </option>
@@ -96,14 +96,14 @@ const videoStore = useVideoStore()
 const { filters, sortBy } = storeToRefs(videoStore)
 
 const LANGUAGES = [
-  { value: 'fr', label: 'Français' },
-  { value: 'en', label: 'Anglais' }
+  { value: 'fr', label: 'French' },
+  { value: 'en', label: 'English' }
 ] as const
 
 const SORT_OPTIONS = [
   { value: 'date', label: 'Date' },
-  { value: 'views', label: 'Vues' },
-  { value: 'duration', label: 'Durée' }
+  { value: 'views', label: 'Views' },
+  { value: 'duration', label: 'Duration' }
 ] as const
 
 const updateSort = (sort: SortOption) => {

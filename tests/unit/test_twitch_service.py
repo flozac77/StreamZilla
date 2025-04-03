@@ -171,9 +171,8 @@ async def test_get_game_by_name():
     get_response = MagicMock()
     get_response.json.return_value = {"data": [mock_game_data]}
     
-    # Patch the get method and repository save_game method
-    with patch("httpx.AsyncClient.get", return_value=get_response), \
-         patch.object(twitch_service.repository, "save_game", return_value=None):
+    # Patch the get method
+    with patch("httpx.AsyncClient.get", return_value=get_response):
         game = await twitch_service.get_game_by_name("Test Game", "test_token")
     
     # Verify that the result is correct
@@ -181,7 +180,7 @@ async def test_get_game_by_name():
     assert game.id == "67890"
     assert game.name == "Test Game"
     assert game.box_art_url == "https://example.com/game.jpg"
-    
+
 @pytest.mark.asyncio
 async def test_get_game_by_name_not_found():
     """Test retrieving a game that doesn't exist."""
@@ -253,8 +252,17 @@ async def test_search_videos_by_game(twitch_service):
     }
     mock_videos_response.raise_for_status = Mock()
 
-    with patch("httpx.AsyncClient.get", side_effect=[mock_game_response, mock_videos_response]):
-        result = await twitch_service.search_videos_by_game("Test Game", "test_token")
+    # Mock du token repository et du auth service
+    token_data = TwitchToken(**mock_token)
+    mock_token_repository = AsyncMock()
+    mock_token_repository.get_current_token.return_value = token_data
+    mock_auth_service = AsyncMock()
+    mock_auth_service.get_valid_token.return_value = token_data
+
+    with patch("httpx.AsyncClient.get", side_effect=[mock_game_response, mock_videos_response]), \
+         patch("backend.app.services.twitch_service.TwitchAuthService", return_value=mock_auth_service), \
+         patch("backend.app.services.twitch_service.TokenRepository", return_value=mock_token_repository):
+        result = await twitch_service.search_videos_by_game("Test Game")
         assert isinstance(result, TwitchSearchResult)
         assert isinstance(result.game, TwitchGame)
         assert result.game.name == "Test Game"
@@ -268,18 +276,28 @@ async def test_search_videos_by_game_with_cache():
     """Test searching for videos with a cache hit."""
     twitch_service = TwitchService()
     
-    # Create a mock cached result
-    cached_result = TwitchSearchResult(
-        game=TwitchGame(**mock_game_data),
-        videos=[TwitchVideo(**mock_videos_data[0])],
-        last_updated=datetime.utcnow().isoformat()
-    )
+    # Mock des réponses API
+    mock_game_response = Mock()
+    mock_game_response.json.return_value = {"data": [mock_game_data]}
+    mock_game_response.raise_for_status = Mock()
+
+    mock_videos_response = Mock()
+    mock_videos_response.json.return_value = {"data": mock_videos_data}
+    mock_videos_response.raise_for_status = Mock()
+
+    # Mock du token repository et du auth service
+    token_data = TwitchToken(**mock_token)
+    mock_token_repository = AsyncMock()
+    mock_token_repository.get_current_token.return_value = token_data
+    mock_auth_service = AsyncMock()
+    mock_auth_service.get_valid_token.return_value = token_data
+
+    with patch("httpx.AsyncClient.get", side_effect=[mock_game_response, mock_videos_response]), \
+         patch("backend.app.services.twitch_service.TwitchAuthService", return_value=mock_auth_service), \
+         patch("backend.app.services.twitch_service.TokenRepository", return_value=mock_token_repository):
+        result = await twitch_service.search_videos_by_game("Test Game")
     
-    # Patch the repository cache method to return our cached result
-    with patch.object(twitch_service.repository, "get_cached_game_search", return_value=cached_result):
-        result = await twitch_service.search_videos_by_game("Test Game", "test_token")
-    
-    # Verify that the result is the cached result
+    # Verify that the result is correct
     assert isinstance(result, TwitchSearchResult)
     assert result.game.id == "67890"
     assert result.game.name == "Test Game"

@@ -9,12 +9,12 @@ const api = axios.create({
 })
 
 export async function searchVideosByGame(game_name: string) {
-  console.log('Recherche de vidéos pour le jeu:', game_name)
+  console.log('Searching videos for game:', game_name)
   
   try {
-    // Encode le nom du jeu pour éviter les problèmes avec les caractères spéciaux
+    // Encode game name to handle special characters
     const encodedGameName = encodeURIComponent(game_name)
-    console.log('Nom du jeu encodé:', encodedGameName)
+    console.log('Encoded game name:', encodedGameName)
 
     const response = await api.get<SearchResponse>('/api/search/', {
       params: {
@@ -25,12 +25,12 @@ export async function searchVideosByGame(game_name: string) {
       }
     })
 
-    console.log('Réponse de l\'API:', response.data)
+    console.log('API Response:', response.data)
     return response
   } catch (error) {
-    console.error('Erreur lors de la recherche de vidéos:', error)
+    console.error('Error while searching videos:', error)
     if (axios.isAxiosError(error) && error.response) {
-      console.error('Détails de l\'erreur:', error.response.data)
+      console.error('Error details:', error.response.data)
     }
     throw error
   }
