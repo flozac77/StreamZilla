@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import VideoListView from '../../src/views/VideoListView.vue'
-import { useVideoStore } from '../../src/stores/videoStore'
+import { useVideoStore } from '../../src/stores/video'
 import { createTestingPinia } from '@pinia/testing'
 
 // Mock @vueuse/core

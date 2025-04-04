@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createTestingPinia } from '@pinia/testing'
 import VideoListView from '@/views/VideoListView.vue'
-import { useVideoStore } from '@/stores/videoStore'
-import { useUserPreferencesStore } from '@/stores/userPreferencesStore'
+import { useVideoStore } from '@/stores/video'
+import { useUserPreferencesStore } from '@/stores/userPreferences'
 import { useToast } from 'vue-toastification'
 
 // Mock components

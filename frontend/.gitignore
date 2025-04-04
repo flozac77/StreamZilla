@@ -59,3 +59,7 @@ coverage
 .cache
 *.tsbuildinfo
 .vite
+
+# Test results
+test-results/
+playwright-report/

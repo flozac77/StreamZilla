@@ -4,6 +4,7 @@ import type { Video, VideoState, VideoStoreActions, VideoStoreGetters, SearchPar
 import type { SortOption, FilterChangeEvent } from '@/types/filters'
 import { DEFAULT_FILTERS, DEFAULT_SORT } from '@/types/filters'
 import { parseDuration } from '@/utils/duration'
+import { retry } from '@/utils/retry'
 
 export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, VideoStoreActions>('video', {
   state: () => ({
@@ -18,7 +19,8 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
     page: 1,
     hasMore: true,
     filters: DEFAULT_FILTERS,
-    sortBy: DEFAULT_SORT
+    sortBy: DEFAULT_SORT,
+    retryCount: 0
   }),
 
   getters: {
@@ -172,13 +174,19 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
         this.visibleVideos = []
         this.page = 1
         this.hasMore = true
+        this.retryCount = 0
       }
       
       this.loading = true
       this.error = null
       
       try {
-        const response = await searchApi(game_name)
+        const response = await retry(
+          () => searchApi(game_name),
+          3, // maxRetries
+          1000 // delay en ms
+        )
+        
         const newVideos = response.data.videos
         if (!newVideos) {
           throw new Error('No videos in response')

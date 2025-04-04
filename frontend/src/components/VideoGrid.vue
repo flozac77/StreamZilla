@@ -51,7 +51,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useVideoStore } from '@/stores/videoStore'
+import { useVideoStore } from '@/stores/video'
 import VideoCard from './VideoCard.vue'
 import type { Video } from '@/types/video'
 

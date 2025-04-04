@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createTestingPinia } from '@pinia/testing'
 import SearchFilters from '../../../src/components/SearchFilters.vue'
-import { useVideoStore } from '../../../src/stores/videoStore'
+import { useVideoStore } from '../../../src/stores/video'
 
 describe('SearchFilters', () => {
   let store

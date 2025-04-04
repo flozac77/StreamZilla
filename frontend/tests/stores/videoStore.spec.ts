@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { useVideoStore } from '../../src/stores/videoStore'
+import { useVideoStore } from '../../src/stores/video'
 import axios from 'axios'
 
 describe('Video Store', () => {

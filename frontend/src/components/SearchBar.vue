@@ -41,7 +41,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useVideoStore } from '@/stores/videoStore'
+import { useVideoStore } from '@/stores/video'
 import { useDebounceFn } from '@vueuse/core'
 
 const videoStore = useVideoStore()

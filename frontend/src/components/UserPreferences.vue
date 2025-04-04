@@ -71,7 +71,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useUserPreferencesStore } from '../stores/userPreferences'
+import { useUserPreferencesStore } from '@/stores/userPreferences'
 
 const userPreferences = useUserPreferencesStore()
 const { searchHistory, favoriteGames, clearHistory, toggleFavorite } = userPreferences
