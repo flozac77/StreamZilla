@@ -1,6 +1,12 @@
 import axios from 'axios'
 import type { SearchResponse } from '@/types/video'
 
+interface SearchOptions {
+  limit?: number
+  use_cache?: boolean
+  cursor?: string | null
+}
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
   headers: {
@@ -8,22 +14,24 @@ const api = axios.create({
   }
 })
 
-export async function searchVideosByGame(game_name: string) {
-  console.log('Searching videos for game:', game_name)
+export const searchVideosByGame = async (game_name: string, options: SearchOptions = {}): Promise<{ data: SearchResponse }> => {
+  console.log('Searching videos for game:', game_name, 'with options:', options)
   
   try {
-    // Encode game name to handle special characters
+    const { limit = 100, use_cache = true, cursor = null } = options
     const encodedGameName = encodeURIComponent(game_name)
-    console.log('Encoded game name:', encodedGameName)
+    
+    const params: Record<string, any> = {
+      game: encodedGameName,
+      limit,
+      use_cache
+    }
 
-    const response = await api.get<SearchResponse>('/api/search/', {
-      params: {
-        game: encodedGameName,
-        limit: 24,
-        page: 1,
-        use_cache: true
-      }
-    })
+    if (cursor) {
+      params.after = cursor
+    }
+    
+    const response = await api.get<SearchResponse>('/api/search/', { params })
 
     console.log('API Response:', response.data)
     return response

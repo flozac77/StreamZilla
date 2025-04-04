@@ -59,23 +59,20 @@
       </div>
       
       <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-test="video-grid">
-        <div v-for="video in videoStore.visibleVideos" :key="video.id" 
+        <div v-for="(video, index) in videoStore.visibleVideos" 
+             :key="`${video.id}-${video.user_name}-${index}`"
              class="bg-gray-800 rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
              data-test="video-card">
-          <div class="relative group">
-            <img :src="`https://static-cdn.jtvnw.net/previews-ttv/live_user_${video.user_name.toLowerCase()}-640x360.jpg`"
-                 :alt="video.title"
-                 class="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105">
-            
-            <!-- Hover Overlay -->
-            <div class="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-              <div class="text-white text-center">
-                <span class="bg-purple-600 px-2 py-1 rounded text-sm">
-                  {{ formatDuration(video.duration) }}
-                </span>
-              </div>
-            </div>
-          </div>
+          <VideoThumbnail 
+            :username="video.user_name"
+            :alt="video.title"
+          >
+            <template #overlay>
+              <span class="bg-purple-600 px-2 py-1 rounded text-sm">
+                {{ formatDuration(video.duration) }}
+              </span>
+            </template>
+          </VideoThumbnail>
           
           <div class="p-4">
             <h2 class="text-xl font-semibold mb-2 line-clamp-2 text-white">{{ video.title }}</h2>
@@ -115,9 +112,11 @@ import { useUserPreferencesStore } from '@/stores/userPreferences'
 import SearchFilters from '@/components/SearchFilters.vue'
 import UserPreferences from '@/components/UserPreferences.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import VideoThumbnail from '@/components/VideoThumbnail.vue'
 import { useIntersectionObserver } from '@vueuse/core'
 import { useToast } from 'vue-toastification'
 import type { FilterChangeEvent, SortOption } from '@/types/filters'
+import type { Video } from '@/types/video'
 import axios from 'axios'
 
 const route = useRoute()
@@ -157,14 +156,14 @@ const setupIntersectionObserver = () => {
   const observer = useIntersectionObserver(
     loadMoreTrigger,
     ([entry]) => {
-      if (entry.isIntersecting && !videoStore.loading && !videoStore.loadingMore) {
+      if (entry.isIntersecting && !videoStore.loading && !videoStore.loadingMore && videoStore.hasMore) {
         console.log('🔄 Intersection detected, loading more videos...')
         videoStore.loadMore()
       }
     },
     {
       threshold: 0.1,
-      rootMargin: '100px'
+      rootMargin: '200px'
     }
   )
 

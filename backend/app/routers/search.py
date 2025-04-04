@@ -8,29 +8,26 @@ router = APIRouter(prefix="/api/search", tags=["search"])
 @router.get("/", response_model=TwitchSearchResult)
 async def search_videos(
     game: str = Query(..., description="Game name to search for"),
-    limit: int = Query(24, ge=1, le=100, description="Number of results per page"),
-    page: int = Query(1, ge=1, description="Page number"),
-    use_cache: bool = Query(True, description="Use cache")
+    limit: int = Query(100, ge=1, le=100, description="Number of results to return (max 100)"),
+    use_cache: bool = Query(True, description="Use cache"),
+    after: Optional[str] = Query(None, description="Cursor for pagination")
 ):
     """
     Search videos for a specific game.
-    - Supports pagination
+    - Maximum 100 results per request
+    - Supports cursor-based pagination
     - Configurable cache
-    - Configurable result limit
     """
     try:
         # Initialize Twitch service
         twitch_service = TwitchService()
         
         try:
-            # Calculate pagination offset
-            offset = (page - 1) * limit
-            
             # Search videos
             result = await twitch_service.search_videos_by_game(
                 game_name=game,
                 limit=limit,
-                offset=offset,
+                cursor=after,
                 use_cache=use_cache
             )
             return result

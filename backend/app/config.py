@@ -6,12 +6,13 @@ from typing import Optional
 class Settings(BaseSettings):
     """Configuration settings for the application."""
     ENVIRONMENT: str = "dev"
-    DEBUG: bool = True
+    DEBUG: bool = False
+    LOG_LEVEL: str = "INFO"
     TWITCH_CLIENT_ID: str
     TWITCH_CLIENT_SECRET: str
     TWITCH_REDIRECT_URI: str
-    MONGODB_URL: str = "mongodb://localhost:27017"
-    MONGODB_DB_NAME: str = "visibrain"
+    MONGODB_URI: str = "mongodb://localhost:27017"
+    MONGODB_DB_NAME: str = "dbTwitch"
     REDIS_URL: str = "redis://localhost:6379"
     SESSION_SECRET_KEY: str = "your-secret-key-here"  # À remplacer en production
     CACHE_TTL: int = 3600  # 1 hour
@@ -27,6 +28,8 @@ class Settings(BaseSettings):
 class DevSettings(Settings):
     """Development settings."""
     ENVIRONMENT: str = "dev"
+    DEBUG: bool = True
+    LOG_LEVEL: str = "DEBUG"
     TWITCH_CLIENT_ID: str 
     TWITCH_CLIENT_SECRET: str 
     # ngrok uniquement pour le callback Twitch

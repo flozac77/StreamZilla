@@ -5,7 +5,7 @@ from typing import Optional
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from pymongo import DESCENDING
 
-from backend.app.models.token import TwitchToken
+from backend.app.models.twitch import TwitchToken
 
 logger = logging.getLogger(__name__)
 

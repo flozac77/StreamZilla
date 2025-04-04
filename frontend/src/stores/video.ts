@@ -5,6 +5,18 @@ import type { SortOption, FilterChangeEvent } from '@/types/filters'
 import { DEFAULT_FILTERS, DEFAULT_SORT } from '@/types/filters'
 import { parseDuration } from '@/utils/duration'
 import { retry } from '@/utils/retry'
+import { useToast } from 'vue-toastification'
+
+// Stratégies de fallback pour la recherche
+const FALLBACK_STRATEGIES = [
+  (game: string) => game.toLowerCase(),
+  (game: string) => game.split(/[\s-]+/)[0], // Premier mot
+  (game: string) => game.replace(/[^a-zA-Z0-9]/g, ''), // Alphanumérique uniquement
+  (game: string) => game.split(/[\s-]+/).slice(0, 2).join(' '), // Deux premiers mots
+]
+
+const VIDEOS_PER_PAGE = 20
+const MAX_VIDEOS = 100
 
 export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, VideoStoreActions>('video', {
   state: () => ({
@@ -16,110 +28,77 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
     error: null as string | null,
     currentSearch: '',
     currentGame: '',
-    page: 1,
+    currentPage: 1,
     hasMore: true,
     filters: DEFAULT_FILTERS,
     sortBy: DEFAULT_SORT,
-    retryCount: 0
+    retryCount: 0,
+    lastError: null as Error | null,
+    currentStrategy: -1,
+    nextCursor: null as string | null
   }),
 
   getters: {
     filteredVideos(): Video[] {
-      console.log('Starting filtering, total videos:', this.allVideos.length)
       let filtered = [...this.allVideos]
 
-      // Language filter
+      // Appliquer les filtres
       if (this.filters.language !== 'all') {
-        console.log('Filtering by language:', this.filters.language)
-        filtered = filtered.filter(video => {
-          const matches = video.language === this.filters.language
-          console.log(`Video ${video.id || 'unknown'}: language=${video.language}, match=${matches}`)
-          return matches
-        })
-        console.log('Videos after language filter:', filtered.length)
+        filtered = filtered.filter(video => video.language === this.filters.language)
       }
 
-      // Date filter
       if (this.filters.date !== 'all') {
-        console.log('Filtering by date:', this.filters.date)
         const now = new Date()
         filtered = filtered.filter(video => {
           const videoDate = new Date(video.created_at)
-          let matches = false
           switch (this.filters.date) {
             case 'today':
-              matches = videoDate.toDateString() === now.toDateString()
-              break
+              return videoDate.toDateString() === now.toDateString()
             case 'this_week':
-              const weekAgo = new Date(now.getTime())
-              weekAgo.setDate(weekAgo.getDate() - 7)
-              matches = videoDate >= weekAgo
-              break
+              const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+              return videoDate >= weekAgo
             case 'this_month':
               const monthAgo = new Date(now.getTime())
               monthAgo.setMonth(monthAgo.getMonth() - 1)
-              matches = videoDate >= monthAgo
-              break
+              return videoDate >= monthAgo
             default:
-              matches = true
+              return true
           }
-          console.log(`Video ${video.id || 'unknown'}: date=${video.created_at}, match=${matches}`)
-          return matches
         })
-        console.log('Videos after date filter:', filtered.length)
       }
 
-      // Duration filter
       if (this.filters.duration !== 'all') {
-        console.log('Filtering by duration:', this.filters.duration)
         filtered = filtered.filter(video => {
           const duration = parseDuration(video.duration)
-          let matches = false
           switch (this.filters.duration) {
             case 'short':
-              matches = duration <= 900
-              break
+              return duration <= 900
             case 'medium':
-              matches = duration > 900 && duration <= 3600
-              break
+              return duration > 900 && duration <= 3600
             case 'long':
-              matches = duration > 3600
-              break
+              return duration > 3600
             default:
-              matches = true
+              return true
           }
-          console.log(`Video ${video.id || 'unknown'}: duration=${video.duration}, match=${matches}`)
-          return matches
         })
-        console.log('Videos after duration filter:', filtered.length)
       }
 
-      // Views filter
       if (this.filters.views !== 'all') {
-        console.log('Filtering by views:', this.filters.views)
         filtered = filtered.filter(video => {
-          let matches = false
           switch (this.filters.views) {
             case 'less_100':
-              matches = video.view_count < 100
-              break
+              return video.view_count < 100
             case '100_1000':
-              matches = video.view_count >= 100 && video.view_count < 1000
-              break
+              return video.view_count >= 100 && video.view_count < 1000
             case 'more_1000':
-              matches = video.view_count >= 1000
-              break
+              return video.view_count >= 1000
             default:
-              matches = true
+              return true
           }
-          console.log(`Video ${video.id || 'unknown'}: views=${video.view_count}, match=${matches}`)
-          return matches
         })
-        console.log('Videos after views filter:', filtered.length)
       }
 
-      // Sort
-      console.log('Applying sort:', this.sortBy)
+      // Appliquer le tri
       filtered.sort((a, b) => {
         switch (this.sortBy) {
           case 'date':
@@ -133,98 +112,183 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
         }
       })
 
-      console.log('Final filtered videos count:', filtered.length)
       return filtered
+    },
+
+    paginatedVideos(): Video[] {
+      const filtered = this.filteredVideos
+      const start = 0
+      const end = this.currentPage * VIDEOS_PER_PAGE
+      return filtered.slice(start, Math.min(end, filtered.length))
+    },
+
+    totalFilteredCount(): number {
+      return this.filteredVideos.length
     }
   },
 
   actions: {
     updateFilters(event: FilterChangeEvent): void {
-      console.log('updateFilters called with:', event)
       this.filters = {
         ...this.filters,
         [event.type]: event.value
       }
-      console.log('New filters:', this.filters)
-      this.applyFilters()
+      this.currentPage = 1
+      this.updateVisibleVideos()
     },
 
     updateSort(sortBy: SortOption): void {
-      console.log('updateSort called with:', sortBy)
       this.sortBy = sortBy
-      this.applyFilters()
+      this.currentPage = 1
+      this.updateVisibleVideos()
     },
 
-    applyFilters(): void {
-      console.log('applyFilters called')
-      console.log('Current filters:', this.filters)
-      console.log('Videos count before filtering:', this.allVideos.length)
-      this.visibleVideos = this.filteredVideos
-      console.log('Videos count after filtering:', this.visibleVideos.length)
+    updateVisibleVideos(): void {
+      const filtered = this.filteredVideos
+      const start = 0
+      const end = this.currentPage * VIDEOS_PER_PAGE
+      
+      // Mettre à jour les vidéos visibles
+      this.visibleVideos = filtered.slice(start, end)
+      
+      console.log({
+        totalVideos: this.allVideos.length,
+        filteredCount: filtered.length,
+        visibleCount: this.visibleVideos.length,
+        currentPage: this.currentPage,
+        hasMore: this.hasMore,
+        nextCursor: this.nextCursor
+      })
     },
 
     async searchVideosByGame(game_name: string): Promise<void> {
       return this.searchVideos({ game_name, reset: true })
     },
 
-    async searchVideos({ game_name, limit = 10, page = 1, reset = false }: SearchParams): Promise<void> {
+    async searchVideos({ game_name, reset = false }: SearchParams): Promise<void> {
+      const toast = useToast()
+      
       if (reset) {
-        this.videos = []
-        this.allVideos = []
-        this.visibleVideos = []
-        this.page = 1
-        this.hasMore = true
-        this.retryCount = 0
+        this.resetState()
       }
       
-      this.loading = true
+      this.loading = reset
+      this.loadingMore = !reset
       this.error = null
       
       try {
+        console.log('Searching videos for game:', game_name, 'with cursor:', this.nextCursor)
         const response = await retry(
-          () => searchApi(game_name),
-          3, // maxRetries
-          1000 // delay en ms
+          () => searchApi(game_name, { 
+            limit: MAX_VIDEOS,
+            cursor: reset ? null : this.nextCursor,
+            use_cache: reset
+          }),
+          3,
+          1000,
+          (error, attempt) => {
+            this.retryCount = attempt
+            this.lastError = error
+            toast.info(`Tentative ${attempt}/3 de récupération des vidéos...`)
+          }
         )
         
         const newVideos = response.data.videos
-        if (!newVideos) {
-          throw new Error('No videos in response')
+        if (!newVideos || newVideos.length === 0) {
+          this.handleNoVideosFound(game_name, reset, toast)
+          return
         }
         
-        this.videos = reset ? newVideos : [...this.videos, ...newVideos]
-        this.allVideos = reset ? newVideos : [...this.allVideos, ...newVideos]
+        console.log(`Received ${newVideos.length} videos from API`)
+        
+        // Mettre à jour le curseur pour la pagination
+        this.nextCursor = response.data.pagination?.cursor || null
+        this.hasMore = !!this.nextCursor
+        
+        if (reset) {
+          this.allVideos = newVideos
+        } else {
+          // Vérifier les doublons avant d'ajouter
+          const existingIds = new Set(this.allVideos.map(v => v.id))
+          const uniqueNewVideos = newVideos.filter(v => !existingIds.has(v.id))
+          this.allVideos = [...this.allVideos, ...uniqueNewVideos]
+        }
+        
         this.currentGame = game_name
         this.currentSearch = game_name
-        this.hasMore = newVideos.length === limit
-        this.applyFilters()
+        this.updateVisibleVideos()
+        
+        if (reset) {
+          toast.success(`${newVideos.length} vidéos trouvées pour "${game_name}"`)
+        }
       } catch (error) {
-        console.error('Error during search:', error)
-        this.error = 'An error occurred while searching for videos'
-        this.allVideos = []
-        this.visibleVideos = []
+        this.handleSearchError(error, game_name, toast)
       } finally {
         this.loading = false
-      }
-    },
-
-    async loadMore(): Promise<void> {
-      if (!this.loading && !this.loadingMore && this.hasMore) {
-        this.loadingMore = true
-        this.page++
-        await this.searchVideos({
-          game_name: this.currentSearch,
-          page: this.page
-        })
         this.loadingMore = false
       }
     },
 
-    resetSearch(): void {
+    async tryNextStrategy(originalGame: string): Promise<boolean> {
+      this.currentStrategy++
+      if (this.currentStrategy >= FALLBACK_STRATEGIES.length) {
+        return false
+      }
+
+      const strategy = FALLBACK_STRATEGIES[this.currentStrategy]
+      const modifiedGame = strategy(originalGame)
+      
+      if (modifiedGame === originalGame) {
+        return this.tryNextStrategy(originalGame)
+      }
+
+      const toast = useToast()
+      toast.info(`Tentative avec une recherche modifiée : "${modifiedGame}"`)
+      
+      try {
+        const response = await retry(
+          () => searchApi(modifiedGame, { 
+            limit: MAX_VIDEOS,
+            use_cache: false 
+          }),
+          2,
+          1000
+        )
+        
+        if (response.data.videos && response.data.videos.length > 0) {
+          console.log(`Fallback strategy found ${response.data.videos.length} videos`)
+          this.allVideos = response.data.videos
+          this.currentGame = modifiedGame
+          this.currentSearch = modifiedGame
+          this.currentPage = 1
+          this.updateVisibleVideos()
+          toast.success(`${response.data.videos.length} vidéos trouvées pour "${modifiedGame}"`)
+          return true
+        }
+      } catch (error) {
+        console.error('Fallback strategy failed:', error)
+      }
+      
+      return this.tryNextStrategy(originalGame)
+    },
+
+    async loadMore(): Promise<void> {
+      if (this.loading || this.loadingMore || !this.hasMore) {
+        return
+      }
+
+      console.log('Loading more videos...')
+      await this.searchVideos({
+        game_name: this.currentGame,
+        reset: false
+      })
+    },
+
+    resetState(): void {
       this.videos = []
       this.allVideos = []
       this.visibleVideos = []
-      this.page = 1
+      this.currentPage = 1
       this.hasMore = true
       this.currentSearch = ''
       this.currentGame = ''
@@ -233,6 +297,46 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
       this.sortBy = DEFAULT_SORT
       this.loading = false
       this.loadingMore = false
+      this.retryCount = 0
+      this.lastError = null
+      this.currentStrategy = -1
+      this.nextCursor = null
+    },
+
+    handleNoVideosFound(game_name: string, reset: boolean, toast: any): void {
+      if (reset) {
+        toast.warning(`Aucune vidéo trouvée pour "${game_name}". Tentative avec des termes alternatifs...`)
+        this.tryNextStrategy(game_name).then(found => {
+          if (!found) {
+            toast.error(`Aucune vidéo trouvée pour "${game_name}" même après plusieurs tentatives`)
+            this.hasMore = false
+            this.nextCursor = null
+          }
+        })
+      } else {
+        this.hasMore = false
+        this.nextCursor = null
+        toast.info('Plus de vidéos disponibles')
+      }
+    },
+
+    handleSearchError(error: unknown, game_name: string, toast: any): void {
+      console.error('Error in searchVideos:', error)
+      this.error = error instanceof Error ? error.message : 'Une erreur est survenue'
+      this.lastError = error instanceof Error ? error : new Error('Une erreur est survenue')
+      this.hasMore = false
+      this.nextCursor = null
+      
+      toast.error(`Erreur lors de la recherche des vidéos${this.retryCount > 0 ? ` (après ${this.retryCount} tentatives)` : ''}: ${this.error}`)
+      
+      if (this.visibleVideos.length === 0) {
+        this.tryNextStrategy(game_name).then(found => {
+          if (!found) {
+            this.visibleVideos = []
+            toast.error('Impossible de charger les vidéos malgré plusieurs tentatives. Veuillez réessayer plus tard.')
+          }
+        })
+      }
     }
   }
 }) 

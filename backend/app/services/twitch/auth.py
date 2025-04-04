@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from fastapi_cache.decorator import cache
 
 from backend.app.config.twitch import get_twitch_settings
-from backend.app.models.token import TwitchToken
+from backend.app.models.twitch import TwitchToken
 from backend.app.repositories.token_repository import TokenRepository
 
 logger = logging.getLogger(__name__)
