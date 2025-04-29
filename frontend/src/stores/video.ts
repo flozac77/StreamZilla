@@ -1,82 +1,341 @@
 import { defineStore } from 'pinia'
-import api from '../config/api'
+import { searchVideosByGame as searchApi } from '@/api/video'
+import type { Video, VideoState, VideoStoreActions, VideoStoreGetters, SearchParams } from '@/types/video'
+import type { SortOption, FilterChangeEvent } from '@/types/filters'
+import { DEFAULT_FILTERS, DEFAULT_SORT } from '@/types/filters'
+import { parseDuration } from '@/utils/duration'
+import { retry } from '@/utils/retry'
+import { useToast } from 'vue-toastification'
 
-interface Video {
-  id: string
-  user_id: string
-  user_name: string
-  title: string
-  description: string
-  created_at: string
-  published_at: string
-  url: string
-  thumbnail_url: string
-  viewable: string
-  view_count: number
-  language: string
-  type: string
-  duration: string
-}
+// Stratégies de fallback pour la recherche
+const FALLBACK_STRATEGIES = [
+  (game: string) => game.toLowerCase(),
+  (game: string) => game.split(/[\s-]+/)[0], // Premier mot
+  (game: string) => game.replace(/[^a-zA-Z0-9]/g, ''), // Alphanumérique uniquement
+  (game: string) => game.split(/[\s-]+/).slice(0, 2).join(' '), // Deux premiers mots
+]
 
-interface Game {
-  id: string
-  name: string
-  box_art_url: string
-}
+const VIDEOS_PER_PAGE = 20
+const MAX_VIDEOS = 100
 
-interface SearchResponse {
-  game_name: string
-  game: Game
-  videos: Video[]
-  last_updated: string
-}
-
-export const useVideoStore = defineStore('video', {
+export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, VideoStoreActions>('video', {
   state: () => ({
     videos: [] as Video[],
-    currentGame: null as string | null,
+    allVideos: [] as Video[],
+    visibleVideos: [] as Video[],
     loading: false,
-    error: null as string | null
+    loadingMore: false,
+    error: null as string | null,
+    currentSearch: '',
+    currentGame: '',
+    currentPage: 1,
+    hasMore: true,
+    filters: DEFAULT_FILTERS,
+    sortBy: DEFAULT_SORT,
+    retryCount: 0,
+    lastError: null as Error | null,
+    currentStrategy: -1,
+    nextCursor: null as string | null
   }),
 
-  actions: {
-    async searchVideosByGame(game: string): Promise<SearchResponse> {
-      this.loading = true
-      this.error = null
-      try {
-        console.log('🔍 Début de la recherche:', {
-          game,
-          timestamp: new Date().toISOString()
-        })
-        
-        const response = await api.get<SearchResponse>(`/api/search`, {
-          params: {
-            game_name: game,
-            limit: 10,
-            use_cache: true
+  getters: {
+    filteredVideos(): Video[] {
+      let filtered = [...this.allVideos]
+
+      // Appliquer les filtres
+      if (this.filters.language !== 'all') {
+        filtered = filtered.filter(video => video.language === this.filters.language)
+      }
+
+      if (this.filters.date !== 'all') {
+        const now = new Date()
+        filtered = filtered.filter(video => {
+          const videoDate = new Date(video.created_at)
+          switch (this.filters.date) {
+            case 'today':
+              return videoDate.toDateString() === now.toDateString()
+            case 'this_week':
+              const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+              return videoDate >= weekAgo
+            case 'this_month':
+              const monthAgo = new Date(now.getTime())
+              monthAgo.setMonth(monthAgo.getMonth() - 1)
+              return videoDate >= monthAgo
+            default:
+              return true
           }
         })
-        
-        console.log('📦 Données reçues:', {
-          videos_count: response.data.videos.length,
-          first_video: response.data.videos[0],
-          game_info: response.data.game,
-          last_updated: response.data.last_updated
+      }
+
+      if (this.filters.duration !== 'all') {
+        filtered = filtered.filter(video => {
+          const duration = parseDuration(video.duration)
+          switch (this.filters.duration) {
+            case 'short':
+              return duration <= 900
+            case 'medium':
+              return duration > 900 && duration <= 3600
+            case 'long':
+              return duration > 3600
+            default:
+              return true
+          }
         })
+      }
+
+      if (this.filters.views !== 'all') {
+        filtered = filtered.filter(video => {
+          switch (this.filters.views) {
+            case 'less_100':
+              return video.view_count < 100
+            case '100_1000':
+              return video.view_count >= 100 && video.view_count < 1000
+            case 'more_1000':
+              return video.view_count >= 1000
+            default:
+              return true
+          }
+        })
+      }
+
+      // Appliquer le tri
+      filtered.sort((a, b) => {
+        switch (this.sortBy) {
+          case 'date':
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          case 'views':
+            return b.view_count - a.view_count
+          case 'duration':
+            return parseDuration(b.duration) - parseDuration(a.duration)
+          default:
+            return 0
+        }
+      })
+
+      return filtered
+    },
+
+    paginatedVideos(): Video[] {
+      const filtered = this.filteredVideos
+      const start = 0
+      const end = this.currentPage * VIDEOS_PER_PAGE
+      return filtered.slice(start, Math.min(end, filtered.length))
+    },
+
+    totalFilteredCount(): number {
+      return this.filteredVideos.length
+    }
+  },
+
+  actions: {
+    updateFilters(event: FilterChangeEvent): void {
+      this.filters = {
+        ...this.filters,
+        [event.type]: event.value
+      }
+      this.currentPage = 1
+      this.updateVisibleVideos()
+    },
+
+    updateSort(sortBy: SortOption): void {
+      this.sortBy = sortBy
+      this.currentPage = 1
+      this.updateVisibleVideos()
+    },
+
+    updateVisibleVideos(): void {
+      const filtered = this.filteredVideos
+      const start = 0
+      const end = this.currentPage * VIDEOS_PER_PAGE
+      
+      // Mettre à jour les vidéos visibles
+      this.visibleVideos = filtered.slice(start, end)
+      
+      console.log({
+        totalVideos: this.allVideos.length,
+        filteredCount: filtered.length,
+        visibleCount: this.visibleVideos.length,
+        currentPage: this.currentPage,
+        hasMore: this.hasMore,
+        nextCursor: this.nextCursor
+      })
+    },
+
+    async searchVideosByGame(game_name: string): Promise<void> {
+      return this.searchVideos({ game_name, reset: true })
+    },
+
+    async searchVideos({ game_name, reset = false }: SearchParams): Promise<void> {
+      const toast = useToast()
+      
+      if (reset) {
+        this.resetState()
+      }
+      
+      this.loading = reset
+      this.loadingMore = !reset
+      this.error = null
+      
+      try {
+        console.log('Searching videos for game:', game_name, 'with cursor:', this.nextCursor)
+        const response = await retry(
+          () => searchApi(game_name, { 
+            limit: MAX_VIDEOS,
+            cursor: reset ? null : this.nextCursor,
+            use_cache: reset
+          }),
+          3,
+          1000,
+          (error, attempt) => {
+            this.retryCount = attempt
+            this.lastError = error
+            toast.info(`Tentative ${attempt}/3 de récupération des vidéos...`)
+          }
+        )
         
-        this.videos = response.data.videos
-        this.currentGame = game
-        return response.data
+        const newVideos = response.data.videos
+        if (!newVideos || newVideos.length === 0) {
+          this.handleNoVideosFound(game_name, reset, toast)
+          return
+        }
+        
+        console.log(`Received ${newVideos.length} videos from API`)
+        
+        // Mettre à jour le curseur pour la pagination
+        this.nextCursor = response.data.pagination?.cursor || null
+        this.hasMore = !!this.nextCursor
+        
+        if (reset) {
+          this.allVideos = newVideos
+        } else {
+          // Vérifier les doublons avant d'ajouter
+          const existingIds = new Set(this.allVideos.map(v => v.id))
+          const uniqueNewVideos = newVideos.filter(v => !existingIds.has(v.id))
+          this.allVideos = [...this.allVideos, ...uniqueNewVideos]
+        }
+        
+        this.currentGame = game_name
+        this.currentSearch = game_name
+        this.updateVisibleVideos()
+        
+        if (reset) {
+          toast.success(`${newVideos.length} vidéos trouvées pour "${game_name}"`)
+        }
       } catch (error) {
-        console.error('❌ Erreur de recherche:', {
-          error,
-          game,
-          timestamp: new Date().toISOString()
-        })
-        this.error = "Erreur lors de la recherche des vidéos"
-        throw error
+        this.handleSearchError(error, game_name, toast)
       } finally {
         this.loading = false
+        this.loadingMore = false
+      }
+    },
+
+    async tryNextStrategy(originalGame: string): Promise<boolean> {
+      this.currentStrategy++
+      if (this.currentStrategy >= FALLBACK_STRATEGIES.length) {
+        return false
+      }
+
+      const strategy = FALLBACK_STRATEGIES[this.currentStrategy]
+      const modifiedGame = strategy(originalGame)
+      
+      if (modifiedGame === originalGame) {
+        return this.tryNextStrategy(originalGame)
+      }
+
+      const toast = useToast()
+      toast.info(`Tentative avec une recherche modifiée : "${modifiedGame}"`)
+      
+      try {
+        const response = await retry(
+          () => searchApi(modifiedGame, { 
+            limit: MAX_VIDEOS,
+            use_cache: false 
+          }),
+          2,
+          1000
+        )
+        
+        if (response.data.videos && response.data.videos.length > 0) {
+          console.log(`Fallback strategy found ${response.data.videos.length} videos`)
+          this.allVideos = response.data.videos
+          this.currentGame = modifiedGame
+          this.currentSearch = modifiedGame
+          this.currentPage = 1
+          this.updateVisibleVideos()
+          toast.success(`${response.data.videos.length} vidéos trouvées pour "${modifiedGame}"`)
+          return true
+        }
+      } catch (error) {
+        console.error('Fallback strategy failed:', error)
+      }
+      
+      return this.tryNextStrategy(originalGame)
+    },
+
+    async loadMore(): Promise<void> {
+      if (this.loading || this.loadingMore || !this.hasMore) {
+        return
+      }
+
+      console.log('Loading more videos...')
+      await this.searchVideos({
+        game_name: this.currentGame,
+        reset: false
+      })
+    },
+
+    resetState(): void {
+      this.videos = []
+      this.allVideos = []
+      this.visibleVideos = []
+      this.currentPage = 1
+      this.hasMore = true
+      this.currentSearch = ''
+      this.currentGame = ''
+      this.error = null
+      this.filters = DEFAULT_FILTERS
+      this.sortBy = DEFAULT_SORT
+      this.loading = false
+      this.loadingMore = false
+      this.retryCount = 0
+      this.lastError = null
+      this.currentStrategy = -1
+      this.nextCursor = null
+    },
+
+    handleNoVideosFound(game_name: string, reset: boolean, toast: any): void {
+      if (reset) {
+        toast.warning(`Aucune vidéo trouvée pour "${game_name}". Tentative avec des termes alternatifs...`)
+        this.tryNextStrategy(game_name).then(found => {
+          if (!found) {
+            toast.error(`Aucune vidéo trouvée pour "${game_name}" même après plusieurs tentatives`)
+            this.hasMore = false
+            this.nextCursor = null
+          }
+        })
+      } else {
+        this.hasMore = false
+        this.nextCursor = null
+        toast.info('Plus de vidéos disponibles')
+      }
+    },
+
+    handleSearchError(error: unknown, game_name: string, toast: any): void {
+      console.error('Error in searchVideos:', error)
+      this.error = error instanceof Error ? error.message : 'Une erreur est survenue'
+      this.lastError = error instanceof Error ? error : new Error('Une erreur est survenue')
+      this.hasMore = false
+      this.nextCursor = null
+      
+      toast.error(`Erreur lors de la recherche des vidéos${this.retryCount > 0 ? ` (après ${this.retryCount} tentatives)` : ''}: ${this.error}`)
+      
+      if (this.visibleVideos.length === 0) {
+        this.tryNextStrategy(game_name).then(found => {
+          if (!found) {
+            this.visibleVideos = []
+            toast.error('Impossible de charger les vidéos malgré plusieurs tentatives. Veuillez réessayer plus tard.')
+          }
+        })
       }
     }
   }

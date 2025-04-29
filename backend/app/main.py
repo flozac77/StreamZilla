@@ -1,77 +1,70 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from fastapi_cache import FastAPICache
-from fastapi_cache.backends.redis import RedisBackend
-from fastapi_cache.backends.inmemory import InMemoryBackend
-from redis.asyncio import Redis
-from fastapi_limiter import FastAPILimiter
-from fastapi_limiter.depends import RateLimiter
-from backend.app.routes import twitch
-from backend.app.config import settings
-from starlette.middleware.sessions import SessionMiddleware
-from prometheus_fastapi_instrumentator import Instrumentator
-from backend.app.middleware.rate_limit import rate_limit_middleware
 import logging
 from contextlib import asynccontextmanager
 
+# FastAPI imports
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.middleware.sessions import SessionMiddleware
+
+# Local imports
+from backend.app.routers.search import router as search_router
+from backend.app.routers.auth import router as auth_router
+from backend.app.config import settings
+from backend.app.cache_config import setup_cache
+from backend.app.scheduler import CacheScheduler
+
 # Configuration des logs
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize Prometheus metrics
-instrumentator = Instrumentator()
+# Variable pour stocker le scheduler
+scheduler = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    redis_instance = None
-    if settings.ENVIRONMENT == "dev":
-        # En développement, utiliser le cache en mémoire
-        FastAPICache.init(InMemoryBackend(), prefix="visibrain-cache")
-        # Désactiver le rate limiter en dev
-        logger.info("Using in-memory cache for development, rate limiter disabled")
-    else:
-        # En production, utiliser Redis
-        redis_instance = Redis.from_url(settings.REDIS_URL, encoding="utf8", decode_responses=True)
-        FastAPICache.init(RedisBackend(redis_instance), prefix="visibrain-cache")
-        await FastAPILimiter.init(redis_instance)
-        logger.info("Using Redis cache for production")
-
-    # Expose Prometheus metrics
-    instrumentator.expose(app)
+    global scheduler
+    
+    # Configuration du cache
+    await setup_cache()
+    
+    # Initialisation du scheduler
+    scheduler = CacheScheduler(cache_ttl=3600)  # 1 heure
+    await scheduler.start()
+    
+    logger.info("Application démarrée avec succès")
     yield
+    
     # Shutdown
-    if redis_instance:
-        await redis_instance.close()
+    if scheduler:
+        await scheduler.stop()
+        logger.info("Application arrêtée avec succès")
+
+# Définition des valeurs pour FastAPI
+PROJECT_NAME = "VisioBrain API"
+API_V1_STR = "/api/v1"
 
 # Init FastAPI
 app = FastAPI(
-    title="VisiBrain API",
+    title=PROJECT_NAME,
     description="API pour la gestion des vidéos Twitch",
     version="1.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
-    openapi_url="/api/openapi.json",
+    openapi_url=f"{API_V1_STR}/openapi.json",
     lifespan=lifespan,
-    debug=True  # Active le mode debug
+    debug=True
 )
-
-# Instrument FastAPI with Prometheus
-instrumentator.instrument(app)
 
 # Configuration CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Frontend Vue.js
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Rate limit middleware (uniquement en production)
-if settings.ENVIRONMENT != "dev":
-    app.middleware("http")(rate_limit_middleware)
 
 # Session middleware
 app.add_middleware(
@@ -82,7 +75,8 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(twitch.router, prefix="/api", tags=["twitch"])
+app.include_router(search_router)
+app.include_router(auth_router)
 
 # Health check endpoint
 @app.get("/health")
@@ -91,19 +85,8 @@ async def health_check():
 
 @app.get("/")
 async def root():
-    """Root endpoint"""
-    return {"message": "Hello World"}
-
-@app.on_event("startup")
-async def startup_event():
-    logger.info("Starting up the application...")
-    # Autres initialisations...
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Shutting down the application...")
-    # Nettoyage...
+    return {"message": "VisioBrain API is running"}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)  # reload=True pour le hot reload 
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True) 

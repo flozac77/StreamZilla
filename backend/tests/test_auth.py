@@ -5,18 +5,19 @@ from backend.app.repositories.token_repository import TokenRepository
 from fastapi.testclient import TestClient
 from unittest.mock import patch
 from backend.app.main import app
+from backend.config import settings
 
 @pytest.fixture
-async def mongodb():
-    client = AsyncIOMotorClient("mongodb://localhost:27017")
-    db = client.visibrain_test
+async def test_db():
+    """Create a test database and clean it up after the test."""
+    client = AsyncIOMotorClient(settings.MONGODB_URI)
+    db = client.dbTwitch_test
     yield db
-    await client.drop_database("visibrain_test")
-    client.close()
+    await client.drop_database("dbTwitch_test")
 
 @pytest.fixture
-async def token_repository(mongodb):
-    repo = TokenRepository(mongodb)
+async def token_repository(test_db):
+    repo = TokenRepository(test_db)
     await repo.initialize()
     return repo
 

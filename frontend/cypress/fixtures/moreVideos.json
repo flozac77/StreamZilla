@@ -1,0 +1,41 @@
+{
+  "game": {
+    "id": "27471",
+    "name": "Minecraft",
+    "box_art_url": "https://static-cdn.jtvnw.net/ttv-boxart/27471-{width}x{height}.jpg"
+  },
+  "videos": [
+    {
+      "id": "4",
+      "user_name": "Streamer4",
+      "title": "Minecraft Modded - Episode 10",
+      "url": "https://twitch.tv/videos/4",
+      "view_count": 2500,
+      "duration": "3h15m",
+      "created_at": "2024-03-26T07:00:00Z",
+      "language": "fr"
+    },
+    {
+      "id": "5",
+      "user_name": "Streamer5",
+      "title": "Minecraft Speedrun Attempts",
+      "url": "https://twitch.tv/videos/5",
+      "view_count": 1200,
+      "duration": "4h",
+      "created_at": "2024-03-26T06:00:00Z",
+      "language": "en"
+    },
+    {
+      "id": "6",
+      "user_name": "Streamer6",
+      "title": "Minecraft Hardcore - Jour 100",
+      "url": "https://twitch.tv/videos/6",
+      "view_count": 3000,
+      "duration": "1h",
+      "created_at": "2024-03-26T05:00:00Z",
+      "language": "fr"
+    }
+  ],
+  "total_count": 6,
+  "last_updated": "2024-03-26T11:00:00Z"
+} 

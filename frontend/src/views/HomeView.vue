@@ -12,7 +12,7 @@
               v-model="searchQuery"
               type="text"
               placeholder="Rechercher un jeu..."
-              class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              class="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               @keyup.enter="handleSearch"
             >
             <button

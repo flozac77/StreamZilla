@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { createTestingPinia } from '@pinia/testing'
 import SearchBar from '@/components/SearchBar.vue'
-import { useVideoStore } from '@/stores/videoStore'
+import { useVideoStore } from '@/stores/video'
 
 describe('SearchBar.vue', () => {
   let wrapper

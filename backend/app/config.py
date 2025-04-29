@@ -5,13 +5,16 @@ from typing import Optional
 
 class Settings(BaseSettings):
     """Configuration settings for the application."""
+    PROJECT_NAME: str = "VisioBrain API"
+    API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = "dev"
-    DEBUG: bool = True
+    DEBUG: bool = False
+    LOG_LEVEL: str = "INFO"
     TWITCH_CLIENT_ID: str
     TWITCH_CLIENT_SECRET: str
     TWITCH_REDIRECT_URI: str
     MONGODB_URL: str = "mongodb://localhost:27017"
-    MONGODB_DB_NAME: str = "visibrain"
+    MONGODB_DB_NAME: str = "dbTwitch"
     REDIS_URL: str = "redis://localhost:6379"
     SESSION_SECRET_KEY: str = "your-secret-key-here"  # À remplacer en production
     CACHE_TTL: int = 3600  # 1 hour
@@ -26,19 +29,23 @@ class Settings(BaseSettings):
 
 class DevSettings(Settings):
     """Development settings."""
+    PROJECT_NAME: str = "VisioBrain API - Dev"
     ENVIRONMENT: str = "dev"
-    TWITCH_CLIENT_ID: str
-    TWITCH_CLIENT_SECRET: str
+    DEBUG: bool = True
+    LOG_LEVEL: str = "DEBUG"
+    TWITCH_CLIENT_ID: str 
+    TWITCH_CLIENT_SECRET: str 
     # ngrok uniquement pour le callback Twitch
     TWITCH_REDIRECT_URI: str = "https://dd9e-2001-861-49c3-9eb0-4ce7-58da-632d-8062.ngrok-free.app/callback"
     MONGODB_URL: str = "mongodb://localhost:27017"
-    MONGODB_DB_NAME: str = "visibrain"
+    MONGODB_DB_NAME: str = "dbTwitch"
     REDIS_URL: str = "redis://localhost:6379"
     SESSION_SECRET_KEY: str = "dev-secret-key"
     API_URL: str = "http://localhost:8000"  # URL locale pour l'API
 
 class TestSettings(Settings):
     """Test settings."""
+    PROJECT_NAME: str = "VisioBrain API - Test"
     ENVIRONMENT: str = "test"
     TWITCH_CLIENT_ID: str = "test-client-id"
     TWITCH_CLIENT_SECRET: str = "test-client-secret"
@@ -50,6 +57,7 @@ class TestSettings(Settings):
 
 class ProdSettings(Settings):
     """Production settings."""
+    PROJECT_NAME: str = "VisioBrain API - Production"
     ENVIRONMENT: str = "prod"
     TWITCH_CLIENT_ID: str = os.getenv("TWITCH_CLIENT_ID", "")
     TWITCH_CLIENT_SECRET: str = os.getenv("TWITCH_CLIENT_SECRET", "")
