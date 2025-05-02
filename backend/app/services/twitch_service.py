@@ -1,12 +1,14 @@
-from typing import Optional, List
+from typing import Optional, List, Tuple
 import httpx
 from datetime import datetime
 import logging
 from cachetools import TTLCache
+from fastapi import HTTPException
 
 from backend.app.config import settings
 from backend.app.models.twitch import TwitchUser, TwitchToken, TwitchVideo, TwitchGame, TwitchSearchResult
 from backend.app.repositories.token_repository import TokenRepository
+from backend.app.repositories.twitch_repository import TwitchRepository
 from backend.app.services.twitch.auth import TwitchAuthService
 
 # Configure logger for debugging
@@ -15,18 +17,22 @@ logger = logging.getLogger(__name__)
 
 class TwitchService:
     def __init__(self):
+        """Initialize the Twitch service with necessary components."""
         self.client = httpx.AsyncClient()
         self.base_url = "https://api.twitch.tv/helix"
         self.auth_url = "https://id.twitch.tv/oauth2"
         self.client_id = settings.TWITCH_CLIENT_ID
         self.auth_service = None
-        # Cache en mémoire pour le dev
-        self.cache = TTLCache(maxsize=settings.CACHE_MAX_SIZE, ttl=settings.CACHE_TTL)
+        self.twitch_repository = TwitchRepository()
+        
+        # Cache en mémoire pour les données fréquemment accédées
+        self.memory_cache = TTLCache(
+            maxsize=settings.CACHE_MAX_SIZE,
+            ttl=settings.CACHE_TTL
+        )
 
     async def _get_auth_service(self) -> TwitchAuthService:
-        """
-        Lazy initialization of auth service to avoid circular imports
-        """
+        """Lazy initialization of auth service."""
         if not self.auth_service:
             from backend.app.dependencies import get_db
             db = await get_db()
@@ -35,10 +41,11 @@ class TwitchService:
         return self.auth_service
 
     async def close(self):
-        """Close the service resources"""
+        """Close all service resources."""
         await self.client.aclose()
         if self.auth_service:
             await self.auth_service.close()
+        await self.twitch_repository.close()
 
     async def get_auth_url(self) -> str:
         """Generate Twitch OAuth URL"""
@@ -78,141 +85,182 @@ class TwitchService:
         use_cache: bool = True
     ) -> TwitchSearchResult:
         """
-        Recherche des vidéos sur Twitch avec une meilleure gestion de la pagination
+        Recherche des vidéos sur Twitch avec gestion du cache.
+        
+        Args:
+            game_name: Nom du jeu à rechercher
+            limit: Nombre maximum de résultats
+            cursor: Curseur pour la pagination
+            use_cache: Utiliser le cache ou non
+            
+        Returns:
+            TwitchSearchResult: Résultats de la recherche
         """
         try:
-            logger.debug(f"Starting search for: {game_name}")
-            auth_service = await self._get_auth_service()
-            token = await auth_service.get_valid_token()
+            # Vérifier le cache si activé
+            if use_cache and not cursor:
+                cached_result = await self.twitch_repository.get_cached_game_search(
+                    game_name=game_name,
+                    limit=limit
+                )
+                if cached_result:
+                    logger.info(f"Cache hit for game: {game_name}")
+                    return cached_result
+
+            # Si pas de cache ou cache expiré, faire l'appel API
+            logger.info(f"Cache miss for game: {game_name}, fetching from API")
+            headers = await self._get_headers()
             
-            headers = {
-                "Client-Id": self.client_id,
-                "Authorization": f"Bearer {token.access_token}"
-            }
-            
-            # 1. Chercher l'ID du jeu
-            game_response = await self.client.get(
+            # 1. Rechercher le jeu
+            game = await self._find_game(game_name, headers)
+            if not game:
+                logger.warning(f"No game found for: {game_name}")
+                return self._empty_result(game_name)
+
+            # 2. Récupérer les streams et vidéos
+            videos, pagination = await self._fetch_videos(
+                game_id=game.id,
+                limit=limit,
+                cursor=cursor,
+                headers=headers
+            )
+
+            # Créer le résultat
+            result = TwitchSearchResult(
+                game_name=game_name,
+                game=game,
+                videos=videos,
+                total_count=len(videos),
+                last_updated=datetime.utcnow(),
+                pagination=pagination
+            )
+
+            # Sauvegarder dans le cache si pas de cursor
+            if use_cache and not cursor:
+                await self.twitch_repository.save_game_search_results(
+                    game_name=game_name,
+                    result=result
+                )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Error in search: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error searching videos: {str(e)}"
+            )
+
+    async def _find_game(self, game_name: str, headers: dict) -> Optional[TwitchGame]:
+        """Recherche un jeu sur Twitch."""
+        try:
+            response = await self.client.get(
                 f"{self.base_url}/search/categories",
                 params={"query": game_name, "first": 1},
                 headers=headers
             )
-            game_data = game_response.json()
-            logger.debug(f"Game search response: {game_data}")
+            response.raise_for_status()
+            data = response.json()
             
-            if not game_data.get("data"):
-                logger.warning(f"No game found for query: {game_name}")
-                return self._empty_result(game_name)
+            if not data.get("data"):
+                return None
+                
+            game = TwitchGame(**data["data"][0])
+            await self.twitch_repository.save_game(game)
+            return game
             
-            game = TwitchGame(**game_data["data"][0])
-            logger.info(f"Found game: {game.name} (ID: {game.id})")
-            
-            all_videos = []
-            seen_ids = set()
-            
-            # 2. Chercher les streams en direct
-            stream_params = {
-                "game_id": game.id,
-                "first": 100
-            }
+        except Exception as e:
+            logger.error(f"Error finding game: {str(e)}")
+            return None
+
+    async def _fetch_videos(
+        self,
+        game_id: str,
+        limit: int,
+        cursor: Optional[str],
+        headers: dict
+    ) -> Tuple[List[TwitchVideo], dict]:
+        """Récupère les streams et vidéos pour un jeu."""
+        all_videos = []
+        seen_ids = set()
+        pagination = {"cursor": None}
+
+        # 1. Récupérer les streams en direct
+        try:
+            stream_params = {"game_id": game_id, "first": min(100, limit)}
             if cursor:
                 stream_params["after"] = cursor
-            
+
             stream_response = await self.client.get(
                 f"{self.base_url}/streams",
                 params=stream_params,
                 headers=headers
             )
+            stream_response.raise_for_status()
             stream_data = stream_response.json()
-            logger.debug(f"Stream response: {stream_data}")
-            
-            # Traiter les streams
+
             for stream in stream_data.get("data", []):
                 if stream["id"] not in seen_ids and len(all_videos) < limit:
-                    try:
-                        video = TwitchVideo(
-                            id=str(stream["id"]),
-                            user_name=stream["user_name"],
-                            title=stream["title"],
-                            url=f"https://twitch.tv/{stream['user_login']}",
-                            view_count=stream["viewer_count"],
-                            duration="LIVE",
-                            created_at=stream["started_at"],
-                            language=stream["language"],
-                            thumbnail_url=stream["thumbnail_url"],
-                            game_id=stream["game_id"],
-                            game_name=stream["game_name"],
-                            type="live"
-                        )
-                        all_videos.append(video)
-                        seen_ids.add(stream["id"])
-                    except Exception as e:
-                        logger.warning(f"Failed to parse stream: {e}")
-                        continue
-            
-            # Si on n'a pas atteint la limite avec les streams, chercher les vidéos archivées
-            remaining_limit = limit - len(all_videos)
-            if remaining_limit > 0:
+                    video = TwitchVideo(
+                        id=stream["id"],
+                        title=stream["title"],
+                        thumbnail_url=stream["thumbnail_url"],
+                        user_name=stream["user_name"],
+                        game_id=stream["game_id"],
+                        type="live",
+                        view_count=stream["viewer_count"],
+                        language=stream["language"],
+                        created_at=stream["started_at"]
+                    )
+                    all_videos.append(video)
+                    seen_ids.add(stream["id"])
+
+            pagination = {"cursor": stream_data.get("pagination", {}).get("cursor")}
+
+        except Exception as e:
+            logger.error(f"Error fetching streams: {str(e)}")
+
+        # 2. Si on n'a pas atteint la limite, ajouter des vidéos archivées
+        if len(all_videos) < limit:
+            try:
+                remaining_limit = limit - len(all_videos)
                 video_params = {
-                    "game_id": game.id,
+                    "game_id": game_id,
                     "first": remaining_limit,
-                    "sort": "views",
-                    "type": "all"
+                    "type": "archive"
                 }
-                if cursor and not stream_data.get("data"):
-                    video_params["after"] = cursor
-                
+
                 video_response = await self.client.get(
                     f"{self.base_url}/videos",
                     params=video_params,
                     headers=headers
                 )
+                video_response.raise_for_status()
                 video_data = video_response.json()
-                logger.debug(f"Video response: {video_data}")
-                
-                # Traiter les vidéos
+
                 for video in video_data.get("data", []):
                     if video["id"] not in seen_ids and len(all_videos) < limit:
-                        try:
-                            video["type"] = "archive"
-                            video_obj = TwitchVideo(**video)
-                            all_videos.append(video_obj)
-                            seen_ids.add(video["id"])
-                        except Exception as e:
-                            logger.warning(f"Failed to parse video: {e}")
-                            continue
-            
-            # Gérer la pagination
-            pagination = {}
-            if len(all_videos) >= limit:
-                if stream_data.get("data"):
-                    pagination = stream_data.get("pagination", {})
-                else:
-                    pagination = video_data.get("pagination", {})
-            
-            # Trier les résultats
-            all_videos.sort(key=lambda v: (
-                v.type == "live",
-                v.view_count or 0
-            ), reverse=True)
-            
-            total_found = len(all_videos)
-            logger.debug(f"Found {total_found} videos total")
-            
-            return TwitchSearchResult(
-                game_name=game_name,
-                game=game,
-                videos=all_videos,
-                total_count=total_found,
-                last_updated=datetime.utcnow(),
-                pagination=pagination
-            )
+                        video = TwitchVideo(
+                            id=video["id"],
+                            title=video["title"],
+                            thumbnail_url=video["thumbnail_url"],
+                            user_name=video["user_name"],
+                            game_id=video["game_id"],
+                            type="archive",
+                            view_count=video["view_count"],
+                            language=video["language"],
+                            created_at=video["created_at"]
+                        )
+                        all_videos.append(video)
+                        seen_ids.add(video["id"])
 
-        except Exception as e:
-            logger.error(f"Error in search: {str(e)}", exc_info=True)
-            return self._empty_result(game_name)
+            except Exception as e:
+                logger.error(f"Error fetching archived videos: {str(e)}")
+
+        return all_videos, pagination
 
     def _empty_result(self, game_name: str) -> TwitchSearchResult:
-        """Helper pour créer un résultat vide"""
+        """Crée un résultat vide."""
         return TwitchSearchResult(
             game_name=game_name,
             game=None,
