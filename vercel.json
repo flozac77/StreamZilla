@@ -2,14 +2,27 @@
   "version": 2,
   "builds": [
     {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist",
+        "buildCommand": "npm install && npm run vercel-build"
+      }
+    },
+    {
       "src": "backend/main.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
+      "src": "^/api/v1/(.*)$",
+      "dest": "/backend/main.py"
+    },
+    {
       "src": "/(.*)",
-      "dest": "backend/main.py"
+      "dest": "/frontend/dist/index.html"
     }
-  ]
+  ],
+  "public": true
 } 
