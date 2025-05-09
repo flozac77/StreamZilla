@@ -11,7 +11,7 @@
     },
     {
       "source": "/:path*",
-      "destination": "/index.html"
+      "destination": "frontend/dist/index.html"
     }
   ]
 }
