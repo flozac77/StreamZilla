@@ -7,7 +7,7 @@
   "rewrites": [
     {
       "source": "/api/v1/:path*",
-      "destination": "/backend/main.py"
+      "destination": "https://api.visibrain.com/api/v1/:path*"
     },
     {
       "source": "/:path*",
