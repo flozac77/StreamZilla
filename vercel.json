@@ -1,17 +1,14 @@
 {
-  "version": 2,
   "builds": [
-    { "src": "frontend/package.json", "use": "@vercel/static-build" },
-    { "src": "backend/main.py",      "use": "@vercel/python"      }
+    {
+      "src": "backend/main.py",
+      "use": "@vercel/python"
+    }
   ],
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/v1/:path*",
-      "destination": "https://api.visibrain.com/api/v1/:path*"
-    },
-    {
-      "source": "/:path*",
-      "destination": "frontend/dist/index.html"
+      "src": "/(.*)",
+      "dest": "backend/main.py"
     }
   ]
 }
