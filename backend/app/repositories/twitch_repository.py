@@ -1,5 +1,6 @@
 from typing import Optional, List
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.errors import PyMongoError
 from ..models.twitch import TwitchGame, TwitchSearchResult, TwitchVideo
 from ..config import settings
 from datetime import datetime, timedelta
@@ -16,100 +17,142 @@ class TwitchRepository:
         self.db = self.client[settings.MONGODB_DB_NAME]
         self.games_collection = self.db["games"]
         self.search_cache_collection = self.db["search_cache"]
-        
-        # Create TTL index for search cache (expire after 2 minutes)
+        self._ensure_indexes()
+
+    def _ensure_indexes(self):
+        """Ensure all required indexes exist."""
         try:
+            # Index pour le cache de recherche (TTL 2 minutes)
             self.search_cache_collection.create_index(
                 "created_at", 
-                expireAfterSeconds=120  # 2 minutes
+                expireAfterSeconds=120
             )
-            logger.debug("TTL index created for search_cache collection")
-        except Exception as e:
-            logger.error(f"Error creating TTL index: {str(e)}")
+            # Index composé pour la recherche rapide par nom de jeu et date
+            self.search_cache_collection.create_index([
+                ("game_name", 1),
+                ("created_at", -1)
+            ])
+            # Index pour les jeux
+            self.games_collection.create_index("name")
+            logger.info("Indexes created successfully")
+        except PyMongoError as e:
+            logger.error(f"Error creating indexes: {str(e)}")
 
     async def close(self):
         """Close database connection"""
         if self.client:
-            await self.client.close()
-            
+            self.client.close()
+
     async def get_cached_game_search(self, game_name: str, limit: int = None) -> Optional[TwitchSearchResult]:
         """
         Get cached search results for a specific game.
-        Returns None if the cache is stale (older than 2 minutes) or doesn't exist.
+        Returns None if the cache is stale or doesn't exist.
         """
         try:
-            # Find the most recent cache for this game name
             cache_result = await self.search_cache_collection.find_one(
                 {"game_name": game_name.lower()},
-                sort=[("created_at", -1)]  # Sort by most recent
+                sort=[("created_at", -1)]
             )
             
             if not cache_result:
                 logger.debug(f"No cache found for game: {game_name}")
                 return None
                 
-            # Check if the cache is still valid (less than 2 minutes old)
             created_at = cache_result.get("created_at")
             if not created_at:
+                logger.warning(f"Invalid cache entry for game {game_name}: missing created_at")
+                await self.invalidate_game_cache(game_name)
                 return None
                 
             cache_age = datetime.utcnow() - created_at
             if cache_age > timedelta(minutes=2):
-                logger.debug(f"Cache for game {game_name} is stale ({cache_age.total_seconds()} seconds old)")
+                logger.debug(f"Cache for game {game_name} is stale ({cache_age.total_seconds()}s old)")
+                await self.invalidate_game_cache(game_name)
                 return None
                 
-            logger.debug(f"Using cache for game {game_name} ({cache_age.total_seconds()} seconds old)")
+            logger.info(f"Cache hit for game {game_name} ({cache_age.total_seconds()}s old)")
             
-            # Apply limit if specified
             result = TwitchSearchResult(**cache_result["result"])
-            if limit is not None and limit > 0 and len(result.videos) > limit:
+            if limit and limit > 0:
                 result.videos = result.videos[:limit]
                 result.total_count = len(result.videos)
             
             return result
             
-        except Exception as e:
-            logger.error(f"Error retrieving cache for game {game_name}: {str(e)}")
+        except PyMongoError as e:
+            logger.error(f"Database error retrieving cache for {game_name}: {str(e)}")
             return None
-            
-    async def save_game_search_results(self, game_name: str, game: Optional[TwitchGame], videos: List[TwitchVideo], pagination: dict) -> None:
+        except Exception as e:
+            logger.error(f"Unexpected error retrieving cache for {game_name}: {str(e)}")
+            return None
+
+    async def save_game_search_results(self, game_name: str, result: TwitchSearchResult) -> bool:
         """
-        Save search results to cache with a 2-minute TTL.
+        Save search results to cache.
+        Returns True if successful, False otherwise.
         """
         try:
-            now = datetime.utcnow()
+            # Invalider l'ancien cache d'abord
+            await self.invalidate_game_cache(game_name)
             
-            # Create search result object
-            search_result = TwitchSearchResult(
-                game_name=game_name,
-                game=game,
-                videos=videos,
-                total_count=len(videos),
-                last_updated=now,
-                pagination=pagination
-            )
-            
-            # Save to cache collection with current timestamp
+            # Sauvegarder les nouveaux résultats
             await self.search_cache_collection.insert_one({
                 "game_name": game_name.lower(),
-                "result": search_result.model_dump(),
-                "created_at": now
+                "result": result.model_dump(),
+                "created_at": datetime.utcnow()
             })
             
-            logger.debug(f"Saved search results for game: {game_name}")
+            logger.info(f"Cache updated for game: {game_name}")
+            return True
             
+        except PyMongoError as e:
+            logger.error(f"Database error saving cache for {game_name}: {str(e)}")
+            return False
         except Exception as e:
-            logger.error(f"Error saving search results for game {game_name}: {str(e)}")
-            
-    async def save_game(self, game: TwitchGame) -> None:
-        """Save game information to database"""
+            logger.error(f"Unexpected error saving cache for {game_name}: {str(e)}")
+            return False
+
+    async def invalidate_game_cache(self, game_name: str) -> bool:
+        """
+        Invalider explicitement le cache pour un jeu donné.
+        Returns True if successful, False otherwise.
+        """
         try:
-            game_dict = game.model_dump()
-            await self.games_collection.update_one(
+            result = await self.search_cache_collection.delete_many({
+                "game_name": game_name.lower()
+            })
+            logger.info(f"Invalidated {result.deleted_count} cache entries for game: {game_name}")
+            return True
+        except PyMongoError as e:
+            logger.error(f"Error invalidating cache for {game_name}: {str(e)}")
+            return False
+
+    async def clear_all_cache(self) -> bool:
+        """
+        Vider tout le cache.
+        Returns True if successful, False otherwise.
+        """
+        try:
+            result = await self.search_cache_collection.delete_many({})
+            logger.info(f"Cleared {result.deleted_count} cache entries")
+            return True
+        except PyMongoError as e:
+            logger.error(f"Error clearing cache: {str(e)}")
+            return False
+
+    async def save_game(self, game: TwitchGame) -> bool:
+        """
+        Save game information to database.
+        Returns True if successful, False otherwise.
+        """
+        try:
+            result = await self.games_collection.update_one(
                 {"id": game.id},
-                {"$set": game_dict},
+                {"$set": game.model_dump()},
                 upsert=True
             )
-            logger.debug(f"Saved game: {game.name}")
-        except Exception as e:
-            logger.error(f"Error saving game {game.name}: {str(e)}") 
+            logger.info(f"Game saved/updated: {game.name}")
+            return True
+        except PyMongoError as e:
+            logger.error(f"Error saving game {game.name}: {str(e)}")
+            return False 
