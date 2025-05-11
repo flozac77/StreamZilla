@@ -10,9 +10,9 @@ backend/app/config/__init__.py
 backend/app/config/dev.py
 backend/app/config/prod.py
 backend/app/config/test.py
-backend/app/routes/__init__.py
-backend/app/routes/twitch.py
-tests/test_routes.py
+backend/app/routers/__init__.py
+backend/app/routers/twitch.py
+tests/test_routers.py
 visibrain.egg-info/PKG-INFO
 visibrain.egg-info/SOURCES.txt
 visibrain.egg-info/dependency_links.txt
