@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     # Database
     MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
     MONGODB_DB_NAME: str = os.getenv("MONGODB_DB_NAME", "dbTwitch")
-    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
+    REDIS_URL: str = Optional[str] = os.getenv("REDIS_URL", "redis://localhost:6379")
     
     # Security
     SESSION_SECRET_KEY: str = os.getenv("SESSION_SECRET_KEY", "your-secret-key-here")
