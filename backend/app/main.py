@@ -13,6 +13,7 @@ from .routers.auth import router as auth_router
 from .config import settings
 from .cache_config import setup_cache
 from .scheduler import CacheScheduler
+from .config.logging_config import setup_logging
 
 # Configuration des logs
 logging.basicConfig(level=logging.INFO)
@@ -45,6 +46,9 @@ async def lifespan(app: FastAPI):
 PROJECT_NAME = "VisioBrain API"
 API_V1_STR = "/api/v1"
 
+# Setup logging first
+setup_logging()
+
 # Init FastAPI
 app = FastAPI(
     title=PROJECT_NAME,
@@ -60,7 +64,7 @@ app = FastAPI(
 # Configuration CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -78,6 +82,9 @@ app.add_middleware(
 app.include_router(search_router)
 app.include_router(auth_router)
 
+@app.get("/")
+async def root():
+    return {"message": "Hello World"}
 
 if __name__ == "__main__":
     import uvicorn

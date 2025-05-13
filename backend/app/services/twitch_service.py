@@ -12,13 +12,8 @@ from backend.app.repositories.token_repository import TokenRepository
 from backend.app.repositories.twitch_repository import TwitchRepository
 from backend.app.services.twitch.auth import TwitchAuthService
 
-# Configure logger for debugging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Configure logger
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 class TwitchService:
     def __init__(self):
