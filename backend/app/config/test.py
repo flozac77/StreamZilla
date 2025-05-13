@@ -12,7 +12,7 @@ class TestSettings(BaseSettings):
     TWITCH_REDIRECT_URI: str = "http://localhost:8000/callback"
     
     # MongoDB settings
-    MONGODB_URL: str = "mongodb+srv://flozac:uT8H8pVQeoJS3LXW@clustermogodb.kqbsqxc.mongodb.net/?retryWrites=true&w=majority"
+    MONGODB_URL: str
     MONGODB_DB_NAME: str = "dbTwitch"
     
     # Redis settings
