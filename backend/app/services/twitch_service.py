@@ -61,9 +61,12 @@ class TwitchService:
             "redirect_uri": settings.TWITCH_REDIRECT_URI
         }
         async with httpx.AsyncClient() as client:
-            response = await client.post(f"{self.auth_url}/token", data=data)
-            response.raise_for_status()
-            return TwitchToken(**response.json())
+           response = await client.post(f"{self.auth_url}/token", data=data)
+           if response.status_code != 200:
+               # afficher l’erreur Twitch
+               logger.error("Twitch token error %s: %s", response.status_code, response.text)
+               raise HTTPException(400, detail=f"Twitch token error: {response.json()}")
+           return TwitchToken(**response.json())
 
     async def get_user_info(self, token: str) -> TwitchUser:
         """Get current user information"""
