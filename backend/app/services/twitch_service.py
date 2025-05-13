@@ -13,8 +13,12 @@ from backend.app.repositories.twitch_repository import TwitchRepository
 from backend.app.services.twitch.auth import TwitchAuthService
 
 # Configure logger for debugging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 class TwitchService:
     def __init__(self):
@@ -54,6 +58,7 @@ class TwitchService:
 
     async def exchange_code_for_token(self, code: str) -> TwitchToken:
         """Exchange authorization code for access token"""
+        logger.debug("Début exchange_code_for_token avec code: %s", code)
         data = {
             "client_id": settings.TWITCH_CLIENT_ID,
             "client_secret": settings.TWITCH_CLIENT_SECRET,
@@ -61,16 +66,20 @@ class TwitchService:
             "grant_type": "authorization_code",
             "redirect_uri": settings.TWITCH_REDIRECT_URI
         }
-        logger.info(f"data_code: {data}")
+        logger.info("Données de requête token: %s", {k: '***' if k in ['client_secret', 'code'] else v for k, v in data.items()})
+        
         async with httpx.AsyncClient() as client:
+           logger.debug("Envoi requête token à Twitch...")
            response = await client.post(f"{self.auth_url}/token", data=data)
+           logger.debug("Réponse Twitch reçue, status: %d", response.status_code)
+           
            if response.status_code != 200:
                logger.error("Twitch token error %s: %s", response.status_code, response.text)
                raise HTTPException(400, detail=f"Twitch token error: {response.json()}")
            
            # Récupérer la réponse et calculer expires_at
            token_data = response.json()
-           logger.debug("Twitch token raw: %s", token_data)
+           logger.debug("Twitch token raw: %s", {k: '***' if k in ['access_token', 'refresh_token'] else v for k, v in token_data.items()})
            
            if "expires_in" in token_data:
                token_data["expires_at"] = (datetime.utcnow() + timedelta(seconds=token_data["expires_in"])).isoformat()
@@ -80,10 +89,13 @@ class TwitchService:
                raise HTTPException(500, detail="Erreur: expires_in manquant dans la réponse Twitch")
                
            try:
-               return TwitchToken(**token_data)
+               logger.debug("Tentative de création du TwitchToken...")
+               token = TwitchToken(**token_data)
+               logger.debug("TwitchToken créé avec succès")
+               return token
            except ValidationError as e:
                logger.error("Erreur de validation TwitchToken: %s", e)
-               raise HTTPException(500, detail="Erreur interne sur le token Twitch")
+               raise HTTPException(500, detail=f"Erreur interne sur le token Twitch: {str(e)}")
 
     async def get_user_info(self, token: str) -> TwitchUser:
         """Get current user information"""
