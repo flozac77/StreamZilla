@@ -87,6 +87,10 @@ async def health_check():
 async def root():
     return {"message": "VisioBrain API is running"}
 
+@app.get("/check")
+async def check():
+    return {"status": "OK"}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True) 
