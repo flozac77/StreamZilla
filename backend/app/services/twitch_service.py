@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import logging
 from cachetools import TTLCache
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 from backend.app.config import settings
 from backend.app.models.twitch import TwitchUser, TwitchToken, TwitchVideo, TwitchGame, TwitchSearchResult
@@ -64,15 +65,25 @@ class TwitchService:
         async with httpx.AsyncClient() as client:
            response = await client.post(f"{self.auth_url}/token", data=data)
            if response.status_code != 200:
-               # afficher l'erreur Twitch
                logger.error("Twitch token error %s: %s", response.status_code, response.text)
                raise HTTPException(400, detail=f"Twitch token error: {response.json()}")
            
            # Récupérer la réponse et calculer expires_at
            token_data = response.json()
-           token_data["expires_at"] = (datetime.utcnow() + timedelta(seconds=token_data["expires_in"])).isoformat()
+           logger.debug("Twitch token raw: %s", token_data)
            
-           return TwitchToken(**token_data)
+           if "expires_in" in token_data:
+               token_data["expires_at"] = (datetime.utcnow() + timedelta(seconds=token_data["expires_in"])).isoformat()
+               logger.debug("Token expires_at calculé: %s", token_data["expires_at"])
+           else:
+               logger.error("Champ expires_in manquant dans la réponse Twitch")
+               raise HTTPException(500, detail="Erreur: expires_in manquant dans la réponse Twitch")
+               
+           try:
+               return TwitchToken(**token_data)
+           except ValidationError as e:
+               logger.error("Erreur de validation TwitchToken: %s", e)
+               raise HTTPException(500, detail="Erreur interne sur le token Twitch")
 
     async def get_user_info(self, token: str) -> TwitchUser:
         """Get current user information"""
