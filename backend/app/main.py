@@ -78,11 +78,6 @@ app.add_middleware(
 app.include_router(search_router)
 app.include_router(auth_router)
 
-# Health check endpoint
-@app.get("/health")
-async def health_check():
-    return {"status": "ok", "message": "Service is running"}
-
 @app.get("/")
 async def root():
     return {"message": "VisioBrain API is running"}
