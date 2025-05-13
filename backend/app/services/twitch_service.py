@@ -60,6 +60,7 @@ class TwitchService:
             "grant_type": "authorization_code",
             "redirect_uri": settings.TWITCH_REDIRECT_URI
         }
+        logger.info(f"data_code: {data}")
         async with httpx.AsyncClient() as client:
            response = await client.post(f"{self.auth_url}/token", data=data)
            if response.status_code != 200:
