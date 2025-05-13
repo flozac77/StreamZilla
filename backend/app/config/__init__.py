@@ -5,7 +5,7 @@ import os
 
 def get_settings():
     """Get settings based on environment"""
-    env = os.getenv("ENVIRONMENT", "dev")
+    env = os.getenv("ENVIRONMENT", "prod")
     if env == "prod":
         return ProdSettings()
     elif env == "test":
@@ -13,7 +13,7 @@ def get_settings():
     return DevSettings()
 
 # Get environment from environment variable or default to development
-ENV = os.getenv("ENVIRONMENT", "dev")
+ENV = os.getenv("ENVIRONMENT", "prod")
 
 # Get settings based on environment
 settings = get_settings()
