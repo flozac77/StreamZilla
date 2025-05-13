@@ -1,6 +1,6 @@
 from typing import Optional, List, Tuple
 import httpx
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from cachetools import TTLCache
 from fastapi import HTTPException
@@ -64,10 +64,15 @@ class TwitchService:
         async with httpx.AsyncClient() as client:
            response = await client.post(f"{self.auth_url}/token", data=data)
            if response.status_code != 200:
-               # afficher l’erreur Twitch
+               # afficher l'erreur Twitch
                logger.error("Twitch token error %s: %s", response.status_code, response.text)
                raise HTTPException(400, detail=f"Twitch token error: {response.json()}")
-           return TwitchToken(**response.json())
+           
+           # Récupérer la réponse et calculer expires_at
+           token_data = response.json()
+           token_data["expires_at"] = (datetime.utcnow() + timedelta(seconds=token_data["expires_in"])).isoformat()
+           
+           return TwitchToken(**token_data)
 
     async def get_user_info(self, token: str) -> TwitchUser:
         """Get current user information"""
