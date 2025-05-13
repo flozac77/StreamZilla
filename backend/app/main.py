@@ -1,5 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
+from motor.motor_asyncio import AsyncIOMotorClient
 
 # FastAPI imports
 from fastapi import FastAPI, Request
@@ -35,6 +36,14 @@ async def lifespan(app: FastAPI):
     await scheduler.start()
     
     logger.info("Application démarrée avec succès")
+    yield
+
+    client = AsyncIOMotorClient(settings.MONGODB_URL)
+    try:
+        await client[settings.MONGODB_DB_NAME].command("ping")
+        logger.info("✅ MongoDB Atlas ping OK from Vercel")
+    except Exception as e:
+        logger.error(f"❌ MongoDB Atlas ping failed from Vercel: {e}")
     yield
     
     # Shutdown
