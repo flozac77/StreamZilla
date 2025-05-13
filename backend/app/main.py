@@ -78,13 +78,6 @@ app.add_middleware(
 app.include_router(search_router)
 app.include_router(auth_router)
 
-@app.get("/")
-async def root():
-    return {"message": "VisioBrain API is running"}
-
-@app.get("/check")
-async def check():
-    return {"status": "OK"}
 
 if __name__ == "__main__":
     import uvicorn

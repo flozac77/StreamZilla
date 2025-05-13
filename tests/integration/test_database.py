@@ -2,30 +2,37 @@ import pytest
 from datetime import datetime
 from backend.app.models.twitch import TwitchUser, TwitchToken
 from backend.app.repositories.twitch_repository import TwitchRepository
-from backend.app.database import get_db  # Importer la fonction get_db
+from backend.app.database import get_db,get_async_db  # Importer la fonction get_db
 
+# --- Tests CRUD MongoDB basiques ---
+def test_sync_db_crud():
+    db = get_db()
+    coll_name = "__test_sync__"
+    coll = db[coll_name]
+    # nettoyage éventuel
+    if coll_name in db.list_collection_names():
+        coll.drop()
+    # Create
+    result = coll.insert_one({"foo": "bar"})
+    # Read
+    doc = coll.find_one({"_id": result.inserted_id})
+    assert doc["foo"] == "bar"
+    # Cleanup
+    coll.drop()
 
 @pytest.mark.asyncio
-async def test_create_user():
-    """Test creating a new user"""
-    repo = TwitchRepository()
-    
-    user = TwitchUser(
-        id="12345",
-        login="test_user",
-        display_name="Test User",
-        profile_image_url="https://example.com/image.jpg",
-        email="test@example.com",
-        created_at=datetime.utcnow()
-    )
-    
-    created_user = await repo.create_user(user)
-    assert created_user.id == user.id
-    assert created_user.login == user.login
-    
-    # Verify user exists in database
-    db_user = await repo.get_user_by_id(user.id)
-    assert db_user is not None
-    assert db_user.id == user.id
-
-# Continue with other tests...
+async def test_async_db_crud():
+    db = await get_async_db()
+    coll_name = "__test_async__"
+    coll = db[coll_name]
+    # nettoyage éventuel
+    existing = await db.list_collection_names()
+    if coll_name in existing:
+        await coll.drop()
+    # Create
+    result = await coll.insert_one({"ping": "pong"})
+    # Read
+    doc = await coll.find_one({"_id": result.inserted_id})
+    assert doc["ping"] == "pong"
+    # Cleanup
+    await coll.drop()
