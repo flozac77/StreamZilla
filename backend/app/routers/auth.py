@@ -1,5 +1,6 @@
 # FastAPI imports
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
 
 # Local imports
 from ..services.twitch_service import TwitchService
@@ -28,9 +29,9 @@ async def auth_callback(code: str, request: Request):
         # Get user info
         user = await twitch_service.get_user_info(token.access_token)
         
-        # Store token in session
-        request.session["twitch_token"] = token.dict()
-        request.session["twitch_user"] = user.dict()
+        # Store token in session using jsonable_encoder for datetime serialization
+        request.session["twitch_token"] = jsonable_encoder(token)
+        request.session["twitch_user"] = jsonable_encoder(user)
         
         return {"message": "Authentication successful"}
     finally:
