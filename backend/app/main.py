@@ -8,11 +8,11 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 
 # Local imports
-from routers.search import router as search_router
-from routers.auth import router as auth_router
-from config import settings
-from cache_config import setup_cache
-from scheduler import CacheScheduler
+from ..routers.search import router as search_router
+from ..routers.auth import router as auth_router
+from ..config import settings
+from ..cache_config import setup_cache
+from ..scheduler import CacheScheduler
 
 # Configuration des logs
 logging.basicConfig(level=logging.INFO)
