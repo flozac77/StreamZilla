@@ -15,9 +15,10 @@ from .config import settings
 from .cache_config import setup_cache
 from .scheduler import CacheScheduler
 from .config.logging_config import setup_logging
+from .middleware.logging import RequestLoggingMiddleware
 
 # Configuration des logs
-logging.basicConfig(stream=sys.stdout,level=logging.INFO)
+setup_logging()  # Utilise notre nouvelle configuration
 logger = logging.getLogger(__name__)
 
 # Variable pour stocker le scheduler
@@ -35,13 +36,13 @@ async def lifespan(app: FastAPI):
     scheduler = CacheScheduler(cache_ttl=3600)  # 1 heure
     await scheduler.start()
     
-    logger.info("Application démarrée avec succès")
+    logger.warning("Application démarrée avec succès")  # Changé en WARNING
     yield
 
     client = AsyncIOMotorClient(settings.MONGODB_URL)
     try:
         await client[settings.MONGODB_DB_NAME].command("ping")
-        logger.info("✅ MongoDB Atlas ping OK from Vercel")
+        logger.warning("✅ MongoDB Atlas ping OK from Vercel")  # Changé en WARNING
     except Exception as e:
         logger.error(f"❌ MongoDB Atlas ping failed from Vercel: {e}")
     yield
@@ -49,14 +50,11 @@ async def lifespan(app: FastAPI):
     # Shutdown
     if scheduler:
         await scheduler.stop()
-        logger.info("Application arrêtée avec succès")
+        logger.warning("Application arrêtée avec succès")  # Changé en WARNING
 
 # Définition des valeurs pour FastAPI
 PROJECT_NAME = "VisioBrain API"
 API_V1_STR = "/api/v1"
-
-# Setup logging first
-setup_logging()
 
 # Init FastAPI
 app = FastAPI(
@@ -86,6 +84,9 @@ app.add_middleware(
     session_cookie="twitch_session",
     max_age=3600,  # 1 hour
 )
+
+# Ajout du middleware de logging en premier
+app.add_middleware(RequestLoggingMiddleware)
 
 # Include routers
 app.include_router(search_router)

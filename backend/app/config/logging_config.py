@@ -2,25 +2,34 @@ import logging
 import sys
 
 def setup_logging():
-    # Configuration du handler pour stdout
-    stdout_handler = logging.StreamHandler(sys.stdout)
-    stdout_handler.setLevel(logging.DEBUG)
-    
-    # Format personnalisé
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    # Configuration du handler de base
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(
+        logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
     )
-    stdout_handler.setFormatter(formatter)
-    
+
     # Configuration du logger root
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)
-    
-    # Supprime les handlers existants pour éviter les doublons
-    root_logger.handlers = []
-    root_logger.addHandler(stdout_handler)
-    
+    root_logger.setLevel(logging.WARNING)  # Niveau global WARNING
+    root_logger.addHandler(handler)
+
     # Configuration spécifique pour nos loggers
-    for logger_name in ['backend.app.services.twitch_service', 'backend.app.routers.auth']:
+    twitch_loggers = [
+        logging.getLogger("backend.app.services.twitch"),
+        logging.getLogger("backend.app.services.twitch_service"),
+        logging.getLogger("backend.app.services.twitch.auth")
+    ]
+
+    for logger in twitch_loggers:
+        logger.setLevel(logging.WARNING)  # Force le niveau WARNING pour Twitch
+        if not logger.handlers:
+            logger.addHandler(handler)
+        logger.propagate = True  # Permet la propagation vers le logger root
+
+    # Configuration spécifique pour nos loggers
+    for logger_name in ['backend.app.routers.auth']:
         logger = logging.getLogger(logger_name)
         logger.setLevel(logging.DEBUG) 
