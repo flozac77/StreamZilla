@@ -191,8 +191,8 @@ class TwitchService:
     async def _find_game(self, game_name: str, headers: dict) -> Optional[TwitchGame]:
         """Recherche un jeu sur Twitch."""
         try:
-            logger.info(f"[Twitch API Request] GET /search/categories - Params: query={game_name}, first=1")
-            logger.info(f"[Twitch API Request] Headers: {headers}")
+            logger.warning(f"[Twitch API Request] GET /search/categories - Params: query={game_name}, first=1")
+            logger.warning(f"[Twitch API Request] Headers: {headers}")
             
             response = await self.client.get(
                 f"{self.base_url}/search/categories",
@@ -200,8 +200,8 @@ class TwitchService:
                 headers=headers
             )
             
-            logger.info(f"[Twitch API Response] Status: {response.status_code}")
-            logger.info(f"[Twitch API Response] Body: {response.json()}")
+            logger.warning(f"[Twitch API Response] Status: {response.status_code}")
+            logger.warning(f"[Twitch API Response] Body: {response.json()}")
             
             response.raise_for_status()
             data = response.json()

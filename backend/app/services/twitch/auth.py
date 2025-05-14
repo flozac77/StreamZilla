@@ -70,9 +70,9 @@ class TwitchAuthService:
                 "Content-Type": "application/x-www-form-urlencoded"
             }
             
-            logger.info(f"[Twitch Auth Request] POST {self.settings.token_url}")
-            logger.info(f"[Twitch Auth Request] Headers: {headers}")
-            logger.info(f"[Twitch Auth Request] Data: {data}")
+            logger.warning(f"[Twitch Auth Request] POST {self.settings.token_url}")
+            logger.warning(f"[Twitch Auth Request] Headers: {headers}")
+            logger.warning(f"[Twitch Auth Request] Data: {data}")
             
             async with self.client as client:
                 response = await client.post(
@@ -85,7 +85,7 @@ class TwitchAuthService:
                     headers=headers
                 )
                 
-                logger.info(f"[Twitch Auth Response] Status: {response.status_code}")
+                logger.warning(f"[Twitch Auth Response] Status: {response.status_code}")
                 if response.status_code != 200:
                     logger.error(f"[Twitch Auth Error] Response: {response.text}")
                 
@@ -94,7 +94,7 @@ class TwitchAuthService:
                     
                 response.raise_for_status()
                 data = response.json()
-                logger.info("[Twitch Auth Response] Token generated successfully")
+                logger.warning("[Twitch Auth Response] Token generated successfully")
                 
             expires_at = datetime.utcnow() + timedelta(seconds=data["expires_in"])
             
@@ -105,7 +105,7 @@ class TwitchAuthService:
             )
             
             await self.token_repository.save_token(token)
-            logger.info(f"[Twitch Auth] Token saved, expires at: {expires_at}")
+            logger.warning(f"[Twitch Auth] Token saved, expires at: {expires_at}")
             return token
             
         except httpx.HTTPError as e:
