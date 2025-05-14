@@ -191,17 +191,23 @@ class TwitchService:
     async def _find_game(self, game_name: str, headers: dict) -> Optional[TwitchGame]:
         """Recherche un jeu sur Twitch."""
         try:
+            logger.info(f"[Twitch API Request] GET /search/categories - Params: query={game_name}, first=1")
+            logger.info(f"[Twitch API Request] Headers: {headers}")
+            
             response = await self.client.get(
                 f"{self.base_url}/search/categories",
                 params={"query": game_name, "first": 1},
                 headers=headers
             )
-            # Ajout debug pour voir la réponse de l'API
-            logger.debug("Twitch search/categories status=%d json=%s", response.status_code, response.json())
+            
+            logger.info(f"[Twitch API Response] Status: {response.status_code}")
+            logger.info(f"[Twitch API Response] Body: {response.json()}")
+            
             response.raise_for_status()
             data = response.json()
             
             if not data.get("data"):
+                logger.warning(f"[Twitch API] No game found for query: {game_name}")
                 return None
                 
             game = TwitchGame(**data["data"][0])
@@ -209,7 +215,7 @@ class TwitchService:
             return game
             
         except Exception as e:
-            logger.error(f"Error finding game: {str(e)}")
+            logger.error(f"[Twitch API Error] Error finding game: {str(e)}")
             return None
 
     async def _fetch_videos(
@@ -230,13 +236,18 @@ class TwitchService:
             if cursor:
                 stream_params["after"] = cursor
 
+            logger.info(f"[Twitch API Request] GET /streams - Params: {stream_params}")
+            logger.info(f"[Twitch API Request] Headers: {headers}")
+
             stream_response = await self.client.get(
                 f"{self.base_url}/streams",
                 params=stream_params,
                 headers=headers
             )
-            # Debug pour voir les streams
-            logger.debug("Streams raw: %s", stream_response.json())
+            
+            logger.info(f"[Twitch API Response] Status: {stream_response.status_code}")
+            logger.info(f"[Twitch API Response] Body: {stream_response.json()}")
+            
             stream_response.raise_for_status()
             stream_data = stream_response.json()
 
@@ -259,7 +270,7 @@ class TwitchService:
             pagination = {"cursor": stream_data.get("pagination", {}).get("cursor")}
 
         except Exception as e:
-            logger.error(f"Error fetching streams: {str(e)}")
+            logger.error(f"[Twitch API Error] Error fetching streams: {str(e)}")
 
         # 2. Si on n'a pas atteint la limite, ajouter des vidéos archivées
         if len(all_videos) < limit:
@@ -271,13 +282,18 @@ class TwitchService:
                     "type": "archive"
                 }
 
+                logger.info(f"[Twitch API Request] GET /videos - Params: {video_params}")
+                logger.info(f"[Twitch API Request] Headers: {headers}")
+
                 video_response = await self.client.get(
                     f"{self.base_url}/videos",
                     params=video_params,
                     headers=headers
                 )
-                # Debug pour voir les vidéos archivées
-                logger.debug("Videos raw: %s", video_response.json())
+                
+                logger.info(f"[Twitch API Response] Status: {video_response.status_code}")
+                logger.info(f"[Twitch API Response] Body: {video_response.json()}")
+                
                 video_response.raise_for_status()
                 video_data = video_response.json()
 
@@ -298,7 +314,7 @@ class TwitchService:
                         seen_ids.add(video["id"])
 
             except Exception as e:
-                logger.error(f"Error fetching archived videos: {str(e)}")
+                logger.error(f"[Twitch API Error] Error fetching archived videos: {str(e)}")
 
         return all_videos, pagination
 
