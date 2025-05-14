@@ -106,8 +106,9 @@ class TwitchService:
 
     async def _get_headers(self) -> dict:
         """Génère les headers nécessaires pour les appels API Twitch."""
-        auth_service = await self._get_auth_service()
-        token = await auth_service.get_valid_token()
+        if not self.auth_service:
+            self.auth_service = await self._get_auth_service()
+        token = await self.auth_service.get_valid_token()
         return {
             "Client-ID": self.client_id,
             "Authorization": f"Bearer {token.access_token}"

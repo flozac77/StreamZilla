@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 import httpx
 from fastapi import HTTPException
-from fastapi_cache.decorator import cache
+from cachetools import TTLCache
 
 from backend.app.config.twitch import get_twitch_settings
 from backend.app.models.twitch import TwitchToken
@@ -26,22 +26,30 @@ class TwitchAuthService:
         self.settings = get_twitch_settings()
         self.token_repository = token_repository
         self.client = httpx.AsyncClient()
+        # Cache local pour stocker le token pendant 1 heure
+        self._token_cache = TTLCache(maxsize=1, ttl=3600)
 
-    @cache(expire=3600)  # Cache pour 1 heure
     async def get_valid_token(self) -> TwitchToken:
         """
         Récupère un token valide, en le renouvelant si nécessaire.
-        Le résultat est mis en cache pendant 1 heure.
+        Utilise un cache local TTL de 1 heure.
         """
         try:
+            # Vérifier le cache local d'abord
+            if "current_token" in self._token_cache:
+                return self._token_cache["current_token"]
+
             current_token = await self.token_repository.get_current_token()
             
             if current_token and await self._is_token_valid(current_token):
                 logger.debug("Token existant valide trouvé")
+                self._token_cache["current_token"] = current_token
                 return current_token
                 
             logger.info("Génération d'un nouveau token")
-            return await self._generate_new_token()
+            new_token = await self._generate_new_token()
+            self._token_cache["current_token"] = new_token
+            return new_token
             
         except Exception as e:
             logger.error(f"Erreur lors de la récupération du token: {str(e)}")
