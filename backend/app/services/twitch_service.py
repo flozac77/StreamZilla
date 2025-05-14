@@ -104,6 +104,15 @@ class TwitchService:
             data = response.json()["data"][0]
             return TwitchUser(**data)
 
+    async def _get_headers(self) -> dict:
+        """Génère les headers nécessaires pour les appels API Twitch."""
+        auth_service = await self._get_auth_service()
+        token = await auth_service.get_valid_token()
+        return {
+            "Client-ID": self.client_id,
+            "Authorization": f"Bearer {token.access_token}"
+        }
+
     async def search_videos_by_game(
         self,
         game_name: str,
