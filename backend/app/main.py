@@ -17,7 +17,7 @@ from .scheduler import CacheScheduler
 from .config.logging_config import setup_logging
 
 # Configuration des logs
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(stream=sys.stdout,level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Variable pour stocker le scheduler
