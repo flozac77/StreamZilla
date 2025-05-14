@@ -119,7 +119,7 @@ class TwitchService:
         game_name: str,
         limit: int = 100,
         cursor: Optional[str] = None,
-        use_cache: bool = True
+        use_cache: bool = False
     ) -> TwitchSearchResult:
         """
         Recherche des vidéos sur Twitch avec gestion du cache.
@@ -196,6 +196,8 @@ class TwitchService:
                 params={"query": game_name, "first": 1},
                 headers=headers
             )
+            # Ajout debug pour voir la réponse de l'API
+            logger.debug("Twitch search/categories status=%d json=%s", response.status_code, response.json())
             response.raise_for_status()
             data = response.json()
             
@@ -233,6 +235,8 @@ class TwitchService:
                 params=stream_params,
                 headers=headers
             )
+            # Debug pour voir les streams
+            logger.debug("Streams raw: %s", stream_response.json())
             stream_response.raise_for_status()
             stream_data = stream_response.json()
 
@@ -272,6 +276,8 @@ class TwitchService:
                     params=video_params,
                     headers=headers
                 )
+                # Debug pour voir les vidéos archivées
+                logger.debug("Videos raw: %s", video_response.json())
                 video_response.raise_for_status()
                 video_data = video_response.json()
 
