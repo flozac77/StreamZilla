@@ -6,19 +6,14 @@ from functools import lru_cache
 from backend.app.services.twitch_service import TwitchService
 from backend.app.config import settings
 
-# MongoDB connection globale
-_mongodb_client: Optional[AsyncIOMotorClient] = None
-
 async def get_db() -> AsyncIOMotorDatabase:
     """
     Dépendance pour obtenir une connexion à la base de données MongoDB.
-    La connexion est réutilisée entre les requêtes.
+    Crée une nouvelle connexion par requête pour éviter
+    l'utilisation d'un event loop fermé en serverless.
     """
-    global _mongodb_client
-    if _mongodb_client is None:
-        _mongodb_client = AsyncIOMotorClient(settings.MONGODB_URL)
-    
-    return _mongodb_client[settings.MONGODB_DB_NAME]
+    client = AsyncIOMotorClient(settings.MONGODB_URL)
+    return client[settings.MONGODB_DB_NAME]
 
 async def get_twitch_service() -> TwitchService:
     """Get Twitch service instance"""
