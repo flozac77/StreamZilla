@@ -262,7 +262,9 @@ class TwitchService:
                         type="live",
                         view_count=stream["viewer_count"],
                         language=stream["language"],
-                        created_at=stream["started_at"]
+                        created_at=stream["started_at"],
+                        url=f"https://www.twitch.tv/{stream.get('user_login', stream['user_name']).lower()}",
+                        duration="live"
                     )
                     all_videos.append(video)
                     seen_ids.add(stream["id"])
@@ -299,18 +301,20 @@ class TwitchService:
 
                 for video in video_data.get("data", []):
                     if video["id"] not in seen_ids and len(all_videos) < limit:
-                        video = TwitchVideo(
+                        video_obj = TwitchVideo(
                             id=video["id"],
                             title=video["title"],
                             thumbnail_url=video["thumbnail_url"],
                             user_name=video["user_name"],
-                            game_id=video["game_id"],
+                            game_id=game_id,
                             type="archive",
-                            view_count=video["view_count"],
-                            language=video["language"],
-                            created_at=video["created_at"]
+                            view_count=video.get("view_count"),
+                            language=video.get("language", ""),
+                            created_at=video.get("created_at", ""),
+                            url=video.get("url", ""),
+                            duration=video.get("duration", "")
                         )
-                        all_videos.append(video)
+                        all_videos.append(video_obj)
                         seen_ids.add(video["id"])
 
             except Exception as e:
