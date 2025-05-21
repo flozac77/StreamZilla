@@ -6,7 +6,7 @@ uvicorn==0.27.1
 # Database
 motor==3.3.2
 dnspython==2.7.0 # Ajouté depuis backend/requirements.txt
-# pymongo==4.6.1 # Motor inclut pymongo. À ajouter seulement si tu l'utilises directement en plus de Motor.
+pymongo==4.7.2 # Décommenté et mis à jour
 
 # Environment and settings
 python-dotenv==1.0.1
