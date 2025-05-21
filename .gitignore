@@ -52,3 +52,7 @@ htmlcov/
 pytest_cache/
 coverage.xml
 .qodo
+.vercel
+
+# Node
+node_modules
