@@ -65,14 +65,14 @@ venv\Scripts\activate
 source venv/bin/activate
 
 # 4. Installez les dépendances
-pip install -r requirements.txt
+pip install -r ../requirements.txt
 
 # 5. Créez un fichier .env
-# Copiez ce contenu dans un nouveau fichier .env :
+# Copiez ce contenu dans un nouveau fichier .env (dans le dossier backend):
 TWITCH_CLIENT_ID=votre_client_id
 TWITCH_CLIENT_SECRET=votre_client_secret
 TWITCH_REDIRECT_URI=https://abc123.ngrok.io/callback  # Remplacez par votre URL ngrok
-DATABASE_URL=sqlite:///./app.db
+DATABASE_URL=sqlite:///app.db # Sera créé dans le dossier backend
 CACHE_TTL=120
 CACHE_MAX_SIZE=100
 ```
@@ -94,8 +94,8 @@ VITE_API_URL=https://abc123.ngrok.io  # Remplacez par votre URL ngrok
 
 1. Démarrez le backend :
 ```bash
-# Dans le dossier backend
-uvicorn backend.app.main:app --reload
+# Dans le dossier backend (assurez-vous que backend/venv est activé)
+python -m uvicorn app.main:app --reload
 ```
 
 2. Démarrez le frontend :

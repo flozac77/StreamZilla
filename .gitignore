@@ -3,6 +3,7 @@ venv-py311/
 .venv-py311/
 env/
 .env/
+backend/venv/
 
 # Fichiers Python compilés
 __pycache__/
@@ -53,6 +54,7 @@ pytest_cache/
 coverage.xml
 .qodo
 .vercel
+visibrain.egg-info/
 
 # Node
 node_modules
