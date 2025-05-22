@@ -6,7 +6,7 @@ import { createTestingPinia } from '@pinia/testing'
 
 // Mock @vueuse/core
 vi.mock('@vueuse/core', () => ({
-  useIntersectionObserver: vi.fn((target, callback) => {
+  useIntersectionObserver: vi.fn((_target, _callback) => { // Prefixed unused parameters
     return {
       stop: vi.fn(),
       isSupported: true
@@ -63,7 +63,7 @@ describe('VideoListView', () => {
   let store
 
   beforeEach(() => {
-    const pinia = createTestingPinia({
+    const _pinia = createTestingPinia({ // Prefixed with _
       createSpy: vi.fn,
       stubActions: false,
       initialState: {

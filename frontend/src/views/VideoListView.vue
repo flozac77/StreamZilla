@@ -69,7 +69,7 @@
           >
             <template #overlay>
               <span class="bg-purple-600 px-2 py-1 rounded text-sm">
-                {{ formatDuration(video.duration) }}
+                {{ formatDurationForDisplay(video.duration) }}
               </span>
             </template>
           </VideoThumbnail>
@@ -77,7 +77,7 @@
           <div class="p-4">
             <h2 class="text-xl font-semibold mb-2 line-clamp-2 text-white">{{ video.title }}</h2>
             <p class="text-purple-400 mb-2">{{ video.user_name }}</p>
-            <p class="text-gray-400 text-sm">{{ formatViews(video.view_count) }} views • {{ formatDuration(video.duration) }}</p>
+            <p class="text-gray-400 text-sm">{{ formatViews(video.view_count) }} views • {{ formatDurationForDisplay(video.duration) }}</p>
           </div>
           
           <div class="px-4 pb-4">
@@ -116,8 +116,8 @@ import VideoThumbnail from '@/components/VideoThumbnail.vue'
 import { useIntersectionObserver } from '@vueuse/core'
 import { useToast } from 'vue-toastification'
 import type { FilterChangeEvent, SortOption } from '@/types/filters'
-import type { Video } from '@/types/video'
 import axios from 'axios'
+import { formatViews, formatDurationForDisplay } from '@/utils/formatters'
 
 const route = useRoute()
 const videoStore = useVideoStore()
@@ -133,9 +133,14 @@ const refreshInterval = ref<number | null>(null)
 const searchQuery = ref(game.value || '')
 
 const handleSearch = () => {
-  if (searchQuery.value.trim()) {
-    game.value = searchQuery.value.trim()
+  // Trimming is now handled by the store's searchVideosByGame action
+  if (searchQuery.value) { // Store will handle if it's all whitespace
+    game.value = searchQuery.value 
     fetchVideos()
+  } else {
+    // If search query is completely empty, might want to reset or do nothing
+    // The store's searchVideosByGame will also handle empty string by resetting.
+    videoStore.resetState() // Or rely on the store's handling
   }
 }
 
@@ -241,29 +246,6 @@ const toggleFavoriteWithNotification = (game: string) => {
   toast.success(message)
 }
 
-const formatViews = (views: number): string => {
-  if (views >= 1000000) {
-    return `${(views / 1000000).toFixed(1)}M`
-  } else if (views >= 1000) {
-    return `${(views / 1000).toFixed(1)}k`
-  }
-  return views.toString()
-}
-
-const formatDuration = (duration: string): string => {
-  const matches = duration.match(/(\d+h)?(\d+m)?(\d+s)?/)
-  if (!matches) return duration
-  
-  const hours = matches[1] ? matches[1].replace('h', '') : '0'
-  const minutes = matches[2] ? matches[2].replace('m', '') : '0'
-  const seconds = matches[3] ? matches[3].replace('s', '') : '0'
-  
-  if (hours !== '0') {
-    return `${hours}:${minutes.padStart(2, '0')}:${seconds.padStart(2, '0')}`
-  }
-  return `${minutes}:${seconds.padStart(2, '0')}`
-}
-
 // Expose les méthodes pour les tests
 defineExpose({
   updateFilters,
@@ -272,8 +254,7 @@ defineExpose({
   setupIntersectionObserver,
   retrySearch,
   toggleFavoriteWithNotification,
-  formatViews,
-  formatDuration,
+  // formatViews and formatDurationForDisplay are now imported, no need to expose if not directly called by parent/test on instance
   searchQuery,
   handleSearch
 })

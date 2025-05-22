@@ -52,15 +52,18 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
         filtered = filtered.filter(video => {
           const videoDate = new Date(video.created_at)
           switch (this.filters.date) {
-            case 'today':
+            case 'today': {
               return videoDate.toDateString() === now.toDateString()
-            case 'this_week':
+            }
+            case 'this_week': {
               const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
               return videoDate >= weekAgo
-            case 'this_month':
+            }
+            case 'this_month': {
               const monthAgo = new Date(now.getTime())
               monthAgo.setMonth(monthAgo.getMonth() - 1)
               return videoDate >= monthAgo
+            }
             default:
               return true
           }
@@ -71,12 +74,15 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
         filtered = filtered.filter(video => {
           const duration = parseDuration(video.duration)
           switch (this.filters.duration) {
-            case 'short':
+            case 'short': {
               return duration <= 900
-            case 'medium':
+            }
+            case 'medium': {
               return duration > 900 && duration <= 3600
-            case 'long':
+            }
+            case 'long': {
               return duration > 3600
+            }
             default:
               return true
           }
@@ -86,12 +92,15 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
       if (this.filters.views !== 'all') {
         filtered = filtered.filter(video => {
           switch (this.filters.views) {
-            case 'less_100':
+            case 'less_100': {
               return video.view_count < 100
-            case '100_1000':
+            }
+            case '100_1000': {
               return video.view_count >= 100 && video.view_count < 1000
-            case 'more_1000':
+            }
+            case 'more_1000': {
               return video.view_count >= 1000
+            }
             default:
               return true
           }
@@ -161,11 +170,23 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
       })
     },
 
-    async searchVideosByGame(game_name: string): Promise<void> {
+    async searchVideosByGame(raw_game_name: string): Promise<void> {
+      const game_name = raw_game_name.trim()
+      if (!game_name) {
+        this.resetState()
+        // Optionally, show a toast or set an error message if a blank search is attempted
+        const toast = useToast()
+        toast.info("Search query was empty. Displaying default state.")
+        return
+      }
       return this.searchVideos({ game_name, reset: true })
     },
 
     async searchVideos({ game_name, reset = false }: SearchParams): Promise<void> {
+      // game_name here is assumed to be already trimmed if called from searchVideosByGame
+      // If searchVideos can be called directly from elsewhere with a raw query,
+      // trimming might be needed here too, or ensure all call sites trim.
+      // For now, assuming searchVideosByGame is the main entry point for new game searches.
       const toast = useToast()
       
       if (reset) {

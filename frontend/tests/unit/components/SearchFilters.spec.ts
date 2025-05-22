@@ -8,7 +8,7 @@ describe('SearchFilters', () => {
   let store
 
   beforeEach(() => {
-    const pinia = createTestingPinia({
+    const _pinia = createTestingPinia({ // Prefixed with _
       createSpy: vi.fn,
       stubActions: false,
       initialState: {

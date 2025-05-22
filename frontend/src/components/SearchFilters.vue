@@ -87,7 +87,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useVideoStore } from '@/stores/video'
 import type { VideoFilters, SortOption, FilterChangeEvent } from '@/types/filters'

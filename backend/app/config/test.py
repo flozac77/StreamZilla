@@ -1,28 +1,37 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from backend.app.config import Settings # Import base Settings
 from typing import List
 import secrets
 
-class TestSettings(BaseSettings):
+class TestSettings(Settings): # Inherit from base Settings
     # Environment
     ENVIRONMENT: str = "test"
+    DEBUG: bool = True # Typically true for tests to get more info
+    LOG_LEVEL: str = "DEBUG" # Or "INFO" if too verbose
     
-    # Twitch API settings
+    # Twitch API settings - Test-specific values
     TWITCH_CLIENT_ID: str = "test_client_id"
     TWITCH_CLIENT_SECRET: str = "test_client_secret"
-    TWITCH_REDIRECT_URI: str = "http://localhost:8000/callback"
+    TWITCH_REDIRECT_URI: str = "http://localhost:8000/callback" # Default, might be overridden by .env
     
-    # MongoDB settings
-    MONGODB_URL: str
-    MONGODB_DB_NAME: str = "dbTwitch"
+    # MongoDB settings - Test-specific database name
+    # MONGODB_URL: str # Inherited, expect from .env or default "mongodb://localhost:27017"
+    MONGODB_DB_NAME: str = "dbTwitchTest" # Specific for testing
     
-    # Redis settings
-    REDIS_URL: str = "redis://localhost:6379"
+    # Redis settings - Inherited, expect from .env or default "redis://localhost:6379"
+    # REDIS_URL: str = "redis://localhost:6379"
     
-    # Session settings
-    SESSION_SECRET_KEY: str = secrets.token_urlsafe(32)
+    # Session settings - Test-specific key
+    SESSION_SECRET_KEY: str = "test-secret-key" # Fixed key for tests
     
-    # Cache settings
-    CACHE_TTL: int = 60  # 1 minute
-    CACHE_MAX_SIZE: int = 100
-    
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True) 
+    # Cache settings - Test-specific values, e.g., shorter TTL
+    CACHE_TTL: int = 60  # 1 minute, override for tests
+    CACHE_MAX_SIZE: int = 10 # Smaller cache for tests
+
+    # API_URL - can be inherited or overridden if test server is different
+    # API_URL: str = "http://localhost:8000" 
+
+    # model_config will be inherited from Settings' Config class
+    # If we want to use a specific .env.test, we would change it here:
+    # model_config = SettingsConfigDict(env_file=".env.test", case_sensitive=True, extra="ignore")
+    class Config(Settings.Config): # Inherit and extend the Config
+        pass # No changes for now

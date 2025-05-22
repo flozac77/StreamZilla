@@ -4,7 +4,7 @@ import { createTestingPinia } from '@pinia/testing'
 import VideoListView from '@/views/VideoListView.vue'
 import { useVideoStore } from '@/stores/video'
 import { useUserPreferencesStore } from '@/stores/userPreferences'
-import { useToast } from 'vue-toastification'
+// import { useToast } from 'vue-toastification' // Removed as toast variable is unused
 
 // Mock components
 vi.mock('@/components/SearchFilters.vue', () => ({
@@ -64,10 +64,10 @@ describe('VideoListView', () => {
   let wrapper
   let videoStore
   let userPreferencesStore
-  let toast
+  // let toast // Removed unused variable
 
   beforeEach(() => {
-    const pinia = createTestingPinia({
+    const pinia = createTestingPinia({ // _pinia would be better if not used
       initialState: {
         video: {
           videos: [],
@@ -100,7 +100,7 @@ describe('VideoListView', () => {
 
     videoStore = useVideoStore(pinia)
     userPreferencesStore = useUserPreferencesStore(pinia)
-    toast = useToast()
+    // toast = useToast() // Removed unused variable initialization
 
     wrapper = mount(VideoListView, {
       global: {

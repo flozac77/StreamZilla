@@ -39,10 +39,15 @@ class CacheScheduler:
         while self.is_running:
             try:
                 # Nettoyage du cache
-                await FastAPICache.clear()
-                logger.info(f"Cache nettoyé à {datetime.now()}")
+                # await FastAPICache.clear()
+                # logger.info(f"Cache nettoyé à {datetime.now()}")
+                # FastAPICache is initialized but not actively used for route caching or data storage.
+                # The primary caching (Twitch game search) is handled by TwitchRepository using MongoDB's TTL.
+                # Therefore, clearing FastAPICache here is currently a no-op or clears an empty cache.
+                # Kept the scheduler structure for potential future tasks.
+                logger.debug(f"CacheScheduler running at {datetime.now()}, FastAPICache.clear() is commented out.")
                 
-                # Attendre jusqu'au prochain nettoyage
+                # Attendre jusqu'au prochain cycle
                 await asyncio.sleep(self.cache_ttl)
             except asyncio.CancelledError:
                 break
@@ -50,6 +55,6 @@ class CacheScheduler:
                 logger.error(f"Erreur dans le scheduler: {e}")
                 await asyncio.sleep(60)  # Attendre 1 minute en cas d'erreur
             
-    async def _update_cache(self):
-        """Exemple de tâche périodique pour mettre à jour le cache"""
-        pass 
+    # async def _update_cache(self):
+    #     """Exemple de tâche périodique pour mettre à jour le cache"""
+    #     pass
