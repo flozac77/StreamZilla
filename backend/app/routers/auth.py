@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 # FastAPI imports
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
@@ -34,6 +38,10 @@ async def auth_callback(code: str, request: Request):
         request.session["twitch_user"] = jsonable_encoder(user)
         
         return {"message": "Authentication successful"}
+    except Exception as e:
+        # Gérer l'exception et retourner une réponse d'erreur spécifique
+        logger.error(f"Error in auth_callback: {e}") # Log l'erreur originale
+        raise HTTPException(status_code=500, detail="Erreur lors de l'authentification Twitch") # Retourne HTTPException
     finally:
         await twitch_service.close()
 
