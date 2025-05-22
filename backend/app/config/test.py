@@ -29,3 +29,4 @@ class TestSettings(Settings): # Inherit from base Settings
 
     # API_URL - can be inherited or overridden if test server is different
     # API_URL: str = "http://localhost:8000" 
+

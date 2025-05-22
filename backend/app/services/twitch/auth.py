@@ -93,7 +93,7 @@ class TwitchAuthService:
                     raise TwitchError(429, "Rate limit exceeded")
                     
                 response.raise_for_status()
-                data = response.json()
+                data = await response.json()
                 logger.warning("[Twitch Auth Response] Token generated successfully")
                 
             expires_at = datetime.utcnow() + timedelta(seconds=data["expires_in"])
