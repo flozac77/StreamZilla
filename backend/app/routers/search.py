@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Optional
+from fastapi_cache.decorator import cache # Added for FastAPICache
 from ..models.twitch import TwitchSearchResult
 from ..services.twitch_service import TwitchService
 from ..dependencies import get_twitch_service
@@ -9,6 +10,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/search", tags=["search"])
 
 @router.get("/", response_model=TwitchSearchResult)
+@cache(expire=3600) # Cache for 1 hour
 async def search_videos(
     game: str = Query(..., description="Nom du jeu à rechercher"),
     limit: int = Query(100, ge=1, le=100, description="Nombre de résultats à retourner (max 100)"),

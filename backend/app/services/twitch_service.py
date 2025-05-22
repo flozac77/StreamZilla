@@ -188,11 +188,23 @@ class TwitchService:
                 detail=f"Error searching videos: {str(e)}"
             )
 
+    _GAME_NOT_FOUND_MARKER = object() # Special marker for games not found
+
     async def _find_game(self, game_name: str, headers: dict) -> Optional[TwitchGame]:
         """Recherche un jeu sur Twitch."""
+        cache_key = f"game_{game_name}"
+        cached_game = self.memory_cache.get(cache_key)
+
+        if cached_game is not None:
+            if cached_game is self._GAME_NOT_FOUND_MARKER:
+                logger.debug(f"Cache hit for not found game: {game_name}")
+                return None
+            logger.debug(f"Cache hit for game: {game_name}")
+            return cached_game
+
         try:
             logger.warning(f"[Twitch API Request] GET /search/categories - Params: query={game_name}, first=1")
-            logger.warning(f"[Twitch API Request] Headers: {headers}")
+            # logger.warning(f"[Twitch API Request] Headers: {headers}") # Headers can contain sensitive token
             
             response = await self.client.get(
                 f"{self.base_url}/search/categories",
@@ -201,21 +213,26 @@ class TwitchService:
             )
             
             logger.warning(f"[Twitch API Response] Status: {response.status_code}")
-            logger.warning(f"[Twitch API Response] Body: {response.json()}")
+            # logger.warning(f"[Twitch API Response] Body: {response.json()}") # Can be large
             
             response.raise_for_status()
             data = response.json()
             
             if not data.get("data"):
                 logger.warning(f"[Twitch API] No game found for query: {game_name}")
+                # Cache "not found" for a shorter period
+                self.memory_cache.set(cache_key, self._GAME_NOT_FOUND_MARKER, ttl=settings.CACHE_TTL / 10)
                 return None
                 
             game = TwitchGame(**data["data"][0])
             await self.twitch_repository.save_game(game)
+            self.memory_cache[cache_key] = game # Use default TTL from __init__
+            logger.debug(f"Game {game_name} cached.")
             return game
             
         except Exception as e:
             logger.error(f"[Twitch API Error] Error finding game: {str(e)}")
+            # Do not cache errors to allow retries
             return None
 
     async def _fetch_videos(
@@ -235,21 +252,30 @@ class TwitchService:
             stream_params = {"game_id": game_id, "first": min(100, limit)}
             if cursor:
                 stream_params["after"] = cursor
-
-            logger.info(f"[Twitch API Request] GET /streams - Params: {stream_params}")
-            logger.info(f"[Twitch API Request] Headers: {headers}")
-
-            stream_response = await self.client.get(
-                f"{self.base_url}/streams",
-                params=stream_params,
-                headers=headers
-            )
             
-            logger.info(f"[Twitch API Response] Status: {stream_response.status_code}")
-            logger.info(f"[Twitch API Response] Body: {stream_response.json()}")
+            streams_cache_key = f"streams_{game_id}_{stream_params.get('first', 100)}_{stream_params.get('after', '')}"
+            cached_stream_data = self.memory_cache.get(streams_cache_key)
+
+            if cached_stream_data:
+                logger.debug(f"Cache hit for streams: {streams_cache_key}")
+                stream_data = cached_stream_data
+            else:
+                logger.info(f"[Twitch API Request] GET /streams - Params: {stream_params}")
+                # logger.info(f"[Twitch API Request] Headers: {headers}")
+
+                stream_response = await self.client.get(
+                    f"{self.base_url}/streams",
+                    params=stream_params,
+                    headers=headers
+                )
+                
+                logger.info(f"[Twitch API Response] Status: {stream_response.status_code}")
+                # logger.info(f"[Twitch API Response] Body: {stream_response.json()}")
             
-            stream_response.raise_for_status()
-            stream_data = stream_response.json()
+                stream_response.raise_for_status()
+                stream_data = stream_response.json()
+                self.memory_cache[streams_cache_key] = stream_data
+                logger.debug(f"Streams data cached: {streams_cache_key}")
 
             for stream in stream_data.get("data", []):
                 if stream["id"] not in seen_ids and len(all_videos) < limit:
@@ -282,23 +308,36 @@ class TwitchService:
                     "game_id": game_id,
                     "first": remaining_limit,
                     "type": "archive"
+                    # cursor for videos is not used in the same way as streams, 
+                    # and this part fetches archives if streams are less than limit,
+                    # so a direct pagination cursor from input might not be applicable here.
+                    # If pagination for videos was needed, it would require a separate cursor.
                 }
-
-                logger.info(f"[Twitch API Request] GET /videos - Params: {video_params}")
-                logger.info(f"[Twitch API Request] Headers: {headers}")
-
-                video_response = await self.client.get(
-                    f"{self.base_url}/videos",
-                    params=video_params,
-                    headers=headers
-                )
                 
-                logger.info(f"[Twitch API Response] Status: {video_response.status_code}")
-                logger.info(f"[Twitch API Response] Body: {video_response.json()}")
-                
-                video_response.raise_for_status()
-                video_data = video_response.json()
+                videos_cache_key = f"videos_{game_id}_{video_params.get('first', 20)}_{video_params.get('type', 'archive')}"
+                cached_video_data = self.memory_cache.get(videos_cache_key)
 
+                if cached_video_data:
+                    logger.debug(f"Cache hit for videos: {videos_cache_key}")
+                    video_data = cached_video_data
+                else:
+                    logger.info(f"[Twitch API Request] GET /videos - Params: {video_params}")
+                    # logger.info(f"[Twitch API Request] Headers: {headers}")
+
+                    video_response = await self.client.get(
+                        f"{self.base_url}/videos",
+                        params=video_params,
+                        headers=headers
+                    )
+                    
+                    logger.info(f"[Twitch API Response] Status: {video_response.status_code}")
+                    # logger.info(f"[Twitch API Response] Body: {video_response.json()}")
+                    
+                    video_response.raise_for_status()
+                    video_data = video_response.json()
+                    self.memory_cache[videos_cache_key] = video_data
+                    logger.debug(f"Videos data cached: {videos_cache_key}")
+                
                 for video in video_data.get("data", []):
                     if video["id"] not in seen_ids and len(all_videos) < limit:
                         video_obj = TwitchVideo(

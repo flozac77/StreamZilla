@@ -22,10 +22,10 @@ class TwitchRepository:
     def _ensure_indexes(self):
         """Ensure all required indexes exist."""
         try:
-            # Index pour le cache de recherche (TTL 2 minutes)
+            # TTL index for search cache, documents auto-delete after 15 minutes.
             self.search_cache_collection.create_index(
                 "created_at", 
-                expireAfterSeconds=120
+                expireAfterSeconds=900 # 15 minutes
             )
             # Index composé pour la recherche rapide par nom de jeu et date
             self.search_cache_collection.create_index([
@@ -63,11 +63,12 @@ class TwitchRepository:
                 logger.warning(f"Invalid cache entry for game {game_name}: missing created_at")
                 await self.invalidate_game_cache(game_name)
                 return None
-                
+            
+            # Check if cache is older than 15 minutes; MongoDB TTL index also handles this but this provides an immediate check.
             cache_age = datetime.utcnow() - created_at
-            if cache_age > timedelta(minutes=2):
+            if cache_age > timedelta(minutes=15):
                 logger.debug(f"Cache for game {game_name} is stale ({cache_age.total_seconds()}s old)")
-                await self.invalidate_game_cache(game_name)
+                await self.invalidate_game_cache(game_name) # Invalidate if stale by this check
                 return None
                 
             logger.info(f"Cache hit for game {game_name} ({cache_age.total_seconds()}s old)")
@@ -91,6 +92,7 @@ class TwitchRepository:
         Save search results to cache.
         Returns True if successful, False otherwise.
         """
+        # Saves new search results, typically after invalidating old ones to ensure freshness.
         try:
             # Invalider l'ancien cache d'abord
             await self.invalidate_game_cache(game_name)
@@ -117,6 +119,7 @@ class TwitchRepository:
         Invalider explicitement le cache pour un jeu donné.
         Returns True if successful, False otherwise.
         """
+        # Explicitly removes cache entries for a game, used to maintain data accuracy.
         try:
             result = await self.search_cache_collection.delete_many({
                 "game_name": game_name.lower()

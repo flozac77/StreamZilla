@@ -212,9 +212,13 @@ onMounted(() => {
 const startAutoRefresh = () => {
   stopAutoRefresh()
   refreshInterval.value = window.setInterval(() => {
-    console.log('Auto-refreshing videos...')
-    fetchVideos()
-  }, 120000)
+    if (!document.hidden) {
+      console.log('Auto-refreshing videos as page is visible...')
+      fetchVideos()
+    } else {
+      console.log('Skipping auto-refresh as page is hidden.')
+    }
+  }, 300000) // Changed to 5 minutes (300,000 ms)
 }
 
 const stopAutoRefresh = () => {

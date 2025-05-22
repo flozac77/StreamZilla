@@ -7,6 +7,17 @@ import { parseDuration } from '@/utils/duration'
 import { retry } from '@/utils/retry'
 import { useToast } from 'vue-toastification'
 
+// Cache constants
+const CACHE_TTL_MS = 900000 // 15 minutes
+interface CachedVideoSearch {
+  data: {
+    videos: Video[]
+    pagination: { cursor: string | null }
+    game?: any // Optional: if you store game details from TwitchSearchResult
+  }
+  expiry: number
+}
+
 // Stratégies de fallback pour la recherche
 const FALLBACK_STRATEGIES = [
   (game: string) => game.toLowerCase(),
@@ -190,7 +201,34 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
       const toast = useToast()
       
       if (reset) {
-        this.resetState()
+        // Try to load from cache first when it's a new search
+        const cacheKey = `videoSearchCache_${game_name}`
+        try {
+          const cached = localStorage.getItem(cacheKey)
+          if (cached) {
+            const parsedCache: CachedVideoSearch = JSON.parse(cached)
+            if (Date.now() < parsedCache.expiry) {
+              console.log(`Cache hit for ${game_name}. Displaying cached results.`)
+              this.allVideos = parsedCache.data.videos
+              this.currentGame = game_name 
+              this.currentSearch = game_name
+              this.nextCursor = parsedCache.data.pagination.cursor
+              this.hasMore = !!this.nextCursor
+              this.currentPage = 1 // Reset page for cached results display
+              this.updateVisibleVideos()
+              this.loading = false
+              toast.info(`Displaying cached results for "${game_name}".`)
+              return
+            } else {
+              console.log(`Cache expired for ${game_name}. Fetching fresh data.`)
+              localStorage.removeItem(cacheKey) // Remove expired cache
+            }
+          }
+        } catch (e) {
+          console.error('Error accessing localStorage for cache retrieval:', e)
+        }
+        // If cache miss or expired, proceed to reset state (without clearing this specific cache again) and fetch
+        this.resetState(false) 
       }
       
       this.loading = reset
@@ -203,7 +241,7 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
           () => searchApi(game_name, { 
             limit: MAX_VIDEOS,
             cursor: reset ? null : this.nextCursor,
-            use_cache: reset
+            use_cache: reset // This use_cache is for backend API cache, not client-side
           }),
           3,
           1000,
@@ -241,6 +279,40 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
         
         if (reset) {
           toast.success(`${newVideos.length} vidéos trouvées pour "${game_name}"`)
+          // Save to client-side cache if it was a fresh search (reset = true) and videos were found
+          if (newVideos.length > 0) {
+            const cacheKey = `videoSearchCache_${game_name}`
+            const cacheItem: CachedVideoSearch = {
+              data: {
+                videos: this.allVideos, // allVideos is now newVideos
+                pagination: { cursor: this.nextCursor },
+                game: response.data.game 
+              },
+              expiry: Date.now() + CACHE_TTL_MS
+            }
+            try {
+              localStorage.setItem(cacheKey, JSON.stringify(cacheItem))
+              console.log(`Saved search results for ${game_name} to client cache.`)
+            } catch (e) {
+              console.error('Error saving to localStorage:', e)
+            }
+          }
+        } else if (!reset && this.currentGame) { // Update cache on loadMore success
+            const cacheKey = `videoSearchCache_${this.currentGame}`
+            const cacheItem: CachedVideoSearch = {
+              data: {
+                videos: this.allVideos, // Updated allVideos
+                pagination: { cursor: this.nextCursor },
+                // game data might not be available on subsequent loads, or use existing from store if needed
+              },
+              expiry: Date.now() + CACHE_TTL_MS 
+            }
+            try {
+              localStorage.setItem(cacheKey, JSON.stringify(cacheItem))
+              console.log(`Updated client cache for ${this.currentGame} after loadMore.`)
+            } catch (e) {
+              console.error('Error updating localStorage after loadMore:', e)
+            }
         }
       } catch (error) {
         this.handleSearchError(error, game_name, toast)
@@ -305,7 +377,16 @@ export const useVideoStore = defineStore<string, VideoState, VideoStoreGetters, 
       })
     },
 
-    resetState(): void {
+    resetState(clearAssociatedCache = true): void {
+      if (clearAssociatedCache && this.currentGame) {
+        const cacheKey = `videoSearchCache_${this.currentGame}`
+        try {
+          localStorage.removeItem(cacheKey)
+          console.log(`Cache cleared for game: ${this.currentGame} due to resetState.`)
+        } catch (e) {
+          console.error('Error removing item from localStorage during resetState:', e)
+        }
+      }
       this.videos = []
       this.allVideos = []
       this.visibleVideos = []
