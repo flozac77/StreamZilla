@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # Database
     MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
     MONGODB_DB_NAME: str = os.getenv("MONGODB_DB_NAME", "dbTwitch")
-    REDIS_URL: str = Optional[str] = os.getenv("REDIS_URL", "redis://localhost:6379")
+    REDIS_URL: Optional[str] = os.getenv("REDIS_URL", "redis://localhost:6379")
     
     # Security
     SESSION_SECRET_KEY: str = os.getenv("SESSION_SECRET_KEY", "your-secret-key-here")
@@ -38,49 +38,19 @@ class Settings(BaseSettings):
         env_file_encoding = "utf-8"
         case_sensitive = True
 
-class DevSettings(Settings):
-    """Development settings."""
-    PROJECT_NAME: str = "VisioBrain API - Dev"
-    ENVIRONMENT: str = "dev"
-    DEBUG: bool = True
-    LOG_LEVEL: str = "DEBUG"
-    TWITCH_CLIENT_ID: str 
-    TWITCH_CLIENT_SECRET: str 
-    # ngrok uniquement pour le callback Twitch
-    TWITCH_REDIRECT_URI: str = "https://dd9e-2001-861-49c3-9eb0-4ce7-58da-632d-8062.ngrok-free.app/callback"
-    MONGODB_URL: str = "mongodb://localhost:27017"
-    MONGODB_DB_NAME: str = "dbTwitch"
-    REDIS_URL: str = "redis://localhost:6379"
-    SESSION_SECRET_KEY: str = "dev-secret-key"
-    API_URL: str = "http://localhost:8000"  # URL locale pour l'API
-
-class TestSettings(Settings):
-    """Test settings."""
-    PROJECT_NAME: str = "VisioBrain API - Test"
-    ENVIRONMENT: str = "test"
-    TWITCH_CLIENT_ID: str = "test-client-id"
-    TWITCH_CLIENT_SECRET: str = "test-client-secret"
-    TWITCH_REDIRECT_URI: str = "http://localhost:8000/callback"
-    MONGODB_URL: str = "mongodb://localhost:27017"
-    MONGODB_DB_NAME: str = "dbTwitchTest"
-    REDIS_URL: str = "redis://localhost:6379"
-    SESSION_SECRET_KEY: str = "test-secret-key"
-
-class ProdSettings(Settings):
-    """Production settings."""
-    PROJECT_NAME: str = "VisioBrain API - Production"
-    ENVIRONMENT: str = "prod"
-    TWITCH_CLIENT_ID: str = os.getenv("TWITCH_CLIENT_ID", "")
-    TWITCH_CLIENT_SECRET: str = os.getenv("TWITCH_CLIENT_SECRET", "")
-    TWITCH_REDIRECT_URI: str = os.getenv("TWITCH_REDIRECT_URI", "")
-    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
-    MONGODB_DB_NAME: str = os.getenv("MONGODB_DB_NAME", "dbTwitch")
-    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
-    SESSION_SECRET_KEY: str = os.getenv("SESSION_SECRET_KEY", "")
-
 @lru_cache()
 def get_settings() -> Settings:
     """Get the appropriate settings based on the environment."""
-    return Settings()
+    env = os.getenv("ENVIRONMENT", "dev") # Read ENVIRONMENT, default to "dev"
+    if env == "dev":
+        from backend.app.config.dev import DevSettings as AppDevSettings
+        return AppDevSettings()
+    elif env == "test":
+        from backend.app.config.test import TestSettings as AppTestSettings
+        return AppTestSettings()
+    elif env == "prod":
+        from backend.app.config.prod import ProdSettings as AppProdSettings
+        return AppProdSettings()
+    return Settings() # Fallback to base settings
 
 settings = get_settings()

@@ -27,4 +27,4 @@ async def get_twitch_token(authorization: Optional[str] = Header(None)) -> str:
     """Get token from Authorization header"""
     if authorization and authorization.startswith("Bearer "):
         return authorization.replace("Bearer ", "")
-    raise HTTPException(status_code=401, detail="Invalid or missing token") 
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing token")

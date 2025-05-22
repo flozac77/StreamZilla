@@ -1,4 +1,3 @@
-import { setActivePinia, createPinia } from 'pinia'
 import { useVideoStore } from '../../../src/stores/video'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Video } from '../../../src/types/video'
@@ -6,10 +5,10 @@ import { createTestingPinia } from '@pinia/testing'
 
 describe('Video Store', () => {
   let store
-  let pinia
+  // let pinia // Removed unused variable
 
   beforeEach(() => {
-    pinia = createTestingPinia({
+    createTestingPinia({ // Call createTestingPinia for its side effects (e.g., setting up active pinia)
       createSpy: vi.fn,
       stubActions: false
     })

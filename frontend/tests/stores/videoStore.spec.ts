@@ -118,20 +118,6 @@ describe('Video Store', () => {
       store.videos = mockVideos
     })
 
-    // it('filters by date', () => {
-    //   store.updateFilters({ date: 'today' })
-    //   expect(store.filteredVideos.length).toBe(1)
-    //   expect(store.filteredVideos[0].id).toBe('1')
-
-    //   store.updateFilters({ date: 'this_week' })
-    //   expect(store.filteredVideos.length).toBe(2)
-    //   expect(store.filteredVideos.map(v => v.id)).toContain('1')
-    //   expect(store.filteredVideos.map(v => v.id)).toContain('2')
-
-    //   store.updateFilters({ date: 'this_month' })
-    //   expect(store.filteredVideos.length).toBe(3)
-    // })
-
     it('filters by duration', () => {
       store.updateFilters({ duration: 'short' })
       expect(store.filteredVideos.length).toBe(1)
