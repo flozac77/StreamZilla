@@ -31,10 +31,4 @@ class DevSettings(Settings):  # Inherit from base Settings
     # Cache settings will be inherited from Settings unless overridden here
     # CACHE_TTL: int = 3600
     # CACHE_MAX_SIZE: int = 1000
-    
-    # model_config will be inherited from Settings' Config class if not redefined
-    # If we want to use a specific .env.dev, we would change it here:
-    # model_config = SettingsConfigDict(env_file=".env.dev", case_sensitive=True, extra="ignore")
-    # For now, let it use the Settings' model_config (which uses .env)
-    class Config(Settings.Config): # Inherit and extend the Config
-        pass # No changes for now, but shows how to do it
+  

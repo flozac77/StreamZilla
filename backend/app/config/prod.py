@@ -35,10 +35,3 @@ class ProdSettings(Settings): # Inherit from base Settings
     # API_URL - should be the production API URL, loaded from .env via Settings
     # API_URL: str = os.getenv("API_URL", "http://localhost:8000") # Example
     # FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173") # Example
-
-    # model_config will be inherited from Settings' Config class
-    # For production, it's crucial that .env or environment variables are correctly set up.
-    # Specific .env.prod could be used:
-    # model_config = SettingsConfigDict(env_file=".env.prod", case_sensitive=True, extra="ignore")
-    class Config(Settings.Config): # Inherit and extend the Config
-        pass # No changes for now

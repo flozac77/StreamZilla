@@ -30,8 +30,3 @@ class TestSettings(Settings): # Inherit from base Settings
     # API_URL - can be inherited or overridden if test server is different
     # API_URL: str = "http://localhost:8000" 
 
-    # model_config will be inherited from Settings' Config class
-    # If we want to use a specific .env.test, we would change it here:
-    # model_config = SettingsConfigDict(env_file=".env.test", case_sensitive=True, extra="ignore")
-    class Config(Settings.Config): # Inherit and extend the Config
-        pass # No changes for now

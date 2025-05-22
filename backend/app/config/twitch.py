@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
 class TwitchSettings(BaseSettings):
@@ -21,10 +21,8 @@ class TwitchSettings(BaseSettings):
     # Token management
     token_refresh_before_expiry: int = 3600  # Renouveler 1h avant expiration
     
-    class Config:
-        env_prefix = "TWITCH_"
-        env_file = ".env"
-        case_sensitive = False
+    # Remplacer class Config par model_config
+    model_config = SettingsConfigDict(env_prefix="TWITCH_", env_file=".env", case_sensitive=False)
 
 @lru_cache()
 def get_twitch_settings() -> TwitchSettings:
