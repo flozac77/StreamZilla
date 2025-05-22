@@ -1,4 +1,4 @@
-from backend.app.config import Settings # Import base Settings
+from backend.app.config.base import Settings # Importer depuis le nouveau fichier base.py
 from typing import List
 import secrets
 import os
