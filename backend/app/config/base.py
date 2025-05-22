@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     # Twitch API settings
     TWITCH_CLIENT_ID: str
     TWITCH_CLIENT_SECRET: str
-    # TWITCH_REDIRECT_URI: str # Peut être défini dans les classes spécifiques si différent
+    TWITCH_REDIRECT_URI: str # Peut être défini dans les classes spécifiques si différent
 
     # MongoDB settings
     MONGODB_URL: str
