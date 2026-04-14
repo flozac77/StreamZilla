@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     # Session settings
     SESSION_SECRET_KEY: str  # Required from .env
 
+    # CORS settings
+    ALLOWED_ORIGINS: list[str] = ["http://localhost:5173"]  # Default safe origin
+
     # Cache settings
     CACHE_TTL: int = 3600 # 1 hour default
     CACHE_MAX_SIZE: int = 1000 # Default max size
