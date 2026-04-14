@@ -118,12 +118,13 @@ def test_debug_false_in_prod():
     """DEBUG must be False in production"""
     with patch.dict(os.environ, {
         "ENVIRONMENT": "prod",
-        "SESSION_SECRET_KEY": "test-secret",
+        "SESSION_SECRET_KEY": "x" * 40,
         "TWITCH_CLIENT_ID": "test-id",
         "TWITCH_CLIENT_SECRET": "test-secret",
         "TWITCH_REDIRECT_URI": "http://localhost:8000/callback",
         "MONGODB_URL": "mongodb://test",
-        "REDIS_URL": "redis://test"
+        "REDIS_URL": "redis://test",
+        "ALLOWED_ORIGINS": '["https://example.com"]',
     }):
         from backend.app.config.prod import ProdSettings
         settings = ProdSettings()

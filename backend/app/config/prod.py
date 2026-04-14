@@ -1,40 +1,41 @@
-from backend.app.config.base import Settings # Importer depuis le nouveau fichier base.py
+from pydantic import field_validator
 
-class ProdSettings(Settings): # Inherit from base Settings
-    # Environment
+from backend.app.config.base import Settings
+
+# Known placeholder values that must never make it to production.
+_WEAK_SECRETS = {
+    "",
+    "dev-secret-key",
+    "dev-secret-key-12345-changeme-in-production",
+    "changeme",
+    "secret",
+}
+
+
+class ProdSettings(Settings):
     ENVIRONMENT: str = "prod"
-    DEBUG: bool = False # DEBUG must be False in production
-    LOG_LEVEL: str = "INFO" # Standard production log level
-    
-    # Twitch API settings
-    # These will be loaded from .env via Settings, or environment variables.
-    # Ensure these are set in the production environment.
-    # TWITCH_CLIENT_ID: str
-    # TWITCH_CLIENT_SECRET: str
-    # TWITCH_REDIRECT_URI: str
-    
-    # MongoDB settings
-    # MONGODB_URL: str # Loaded from .env via Settings
-    # MONGODB_DB_NAME: str = "dbTwitch" # Can be inherited or overridden
-    
-    # Redis settings
-    # REDIS_URL: str # Loaded from .env via Settings
-    
-    # Session settings
-    # SESSION_SECRET_KEY is required from .env in production
-    # Do NOT fallback to secrets.token_urlsafe() - it will regenerate on each deploy
+    DEBUG: bool = False
+    LOG_LEVEL: str = "INFO"
 
-    # Cache settings - can be inherited or overridden
-    # CACHE_TTL: int = 3600
-    # CACHE_MAX_SIZE: int = 1000
+    # Production must explicitly set allowed origins via .env.
+    ALLOWED_ORIGINS: list[str] = []
 
-    # API_URL - should be the production API URL, loaded from .env via Settings
-    # API_URL: str = os.getenv("API_URL", "http://localhost:8000") # Example
+    @field_validator("SESSION_SECRET_KEY")
+    @classmethod
+    def _session_secret_strong(cls, v: str) -> str:
+        if v in _WEAK_SECRETS:
+            raise ValueError(
+                "SESSION_SECRET_KEY is a known placeholder; set a strong value in .env"
+            )
+        if len(v) < 32:
+            raise ValueError("SESSION_SECRET_KEY must be at least 32 characters long")
+        return v
 
-    # FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173") # Example
-
-    # CORS settings
-    # Production: set ALLOWED_ORIGINS in .env to comma-separated list
-    # Example: ALLOWED_ORIGINS='["https://yourdomain.com","https://app.yourdomain.com"]'
-    ALLOWED_ORIGINS: list[str] = []  # Prod must explicitly set origins in .env
-
+    @field_validator("ALLOWED_ORIGINS")
+    @classmethod
+    def _origins_not_empty(cls, v: list[str]) -> list[str]:
+        if not v:
+            raise ValueError(
+                "ALLOWED_ORIGINS must be set in production (comma-separated JSON list)"
+            )
+        return v

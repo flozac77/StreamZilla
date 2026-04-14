@@ -1,0 +1,47 @@
+# VCS
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.mypy_cache
+.ruff_cache
+*.egg-info
+venv
+venv-py311
+.venv
+
+# Node
+frontend/node_modules
+frontend/dist
+frontend/.vite
+frontend/playwright-report
+frontend/cypress
+
+# Tests and coverage
+tests
+htmlcov
+.coverage
+coverage.xml
+
+# Editor / OS
+.vscode
+.idea
+.DS_Store
+
+# Secrets / local envs
+.env
+.env.*
+!.env.production.example
+
+# Docs / plans
+docs
+
+# Misc
+*.log
+*.sqlite

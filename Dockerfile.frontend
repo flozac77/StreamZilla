@@ -1,0 +1,27 @@
+# syntax=docker/dockerfile:1.6
+
+# ---- Build stage ----
+FROM node:20-alpine AS build
+
+WORKDIR /build
+
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+
+COPY frontend/ ./
+RUN npm run build
+
+# ---- Runtime stage ----
+FROM nginx:1.27-alpine AS runtime
+
+# Drop default site config; project-level nginx conf is mounted by compose.
+RUN rm /etc/nginx/conf.d/default.conf
+
+COPY --from=build /build/dist /usr/share/nginx/html
+
+# nginx:alpine already runs worker processes as the 'nginx' user.
+# The master must start as root to bind :80 then drops privileges.
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget --quiet --spider http://127.0.0.1/healthz || exit 1
