@@ -1,20 +1,16 @@
 from typing import Optional, List
-from motor.motor_asyncio import AsyncIOMotorClient
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo.errors import PyMongoError
 from ..models.twitch import TwitchGame, TwitchSearchResult, TwitchVideo
-from ..config import settings
 from datetime import datetime, timedelta
 import logging
 
-# Configure logger for debugging
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 class TwitchRepository:
-    def __init__(self):
-        """Initialize the repository with database collections."""
-        self.client = AsyncIOMotorClient(settings.MONGODB_URL)
-        self.db = self.client[settings.MONGODB_DB_NAME]
+    def __init__(self, db: AsyncIOMotorDatabase):
+        """Initialize the repository with an injected database handle."""
+        self.db = db
         self.games_collection = self.db["games"]
         self.search_cache_collection = self.db["search_cache"]
         self._ensure_indexes()
@@ -39,9 +35,8 @@ class TwitchRepository:
             logger.error(f"Error creating indexes: {str(e)}")
 
     async def close(self):
-        """Close database connection"""
-        if self.client:
-            self.client.close()
+        """No-op: the MongoDB client is managed by the app lifespan."""
+        return None
 
     async def get_cached_game_search(self, game_name: str, limit: int = None) -> Optional[TwitchSearchResult]:
         """
