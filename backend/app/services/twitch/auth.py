@@ -70,9 +70,9 @@ class TwitchAuthService:
                 "Content-Type": "application/x-www-form-urlencoded"
             }
             
-            logger.warning(f"[Twitch Auth Request] POST {self.settings.token_url}")
-            logger.warning(f"[Twitch Auth Request] Headers: {headers}")
-            logger.warning(f"[Twitch Auth Request] Data: {data}")
+            logger.debug(f"[Twitch Auth Request] POST {self.settings.token_url}")
+            logger.debug(f"[Twitch Auth Request] Headers: {headers}")
+            logger.debug(f"[Twitch Auth Request] Data: {data}")
             
             async with self.client as client:
                 response = await client.post(
@@ -85,7 +85,7 @@ class TwitchAuthService:
                     headers=headers
                 )
                 
-                logger.warning(f"[Twitch Auth Response] Status: {response.status_code}")
+                logger.debug(f"[Twitch Auth Response] Status: {response.status_code}")
                 if response.status_code != 200:
                     logger.error(f"[Twitch Auth Error] Response: {response.text}")
                 
@@ -94,7 +94,7 @@ class TwitchAuthService:
                     
                 response.raise_for_status()
                 data = await response.json()
-                logger.warning("[Twitch Auth Response] Token generated successfully")
+                logger.info("[Twitch Auth Response] Token generated successfully")
                 
             expires_at = datetime.utcnow() + timedelta(seconds=data["expires_in"])
             
@@ -105,7 +105,7 @@ class TwitchAuthService:
             )
             
             await self.token_repository.save_token(token)
-            logger.warning(f"[Twitch Auth] Token saved, expires at: {expires_at}")
+            logger.info(f"[Twitch Auth] Token saved, expires at: {expires_at}")
             return token
             
         except httpx.HTTPError as e:
@@ -137,22 +137,22 @@ class TwitchAuthService:
                 "Client-Id": self.settings.client_id
             }
             
-            logger.info(f"[Twitch Auth Request] GET {self.settings.validate_url}")
-            logger.info(f"[Twitch Auth Request] Headers: {headers}")
+            logger.debug(f"[Twitch Auth Request] GET {self.settings.validate_url}")
+            logger.debug(f"[Twitch Auth Request] Headers: {headers}")
             
             async with self.client as client:
                 response = await client.get(self.settings.validate_url, headers=headers)
                 
-                logger.info(f"[Twitch Auth Response] Status: {response.status_code}")
+                logger.debug(f"[Twitch Auth Response] Status: {response.status_code}")
                 if response.status_code != 200:
-                    logger.info(f"[Twitch Auth Response] Body: {response.text}")
+                    logger.debug(f"[Twitch Auth Response] Body: {response.text}")
                 
                 if response.status_code == 429:
                     raise TwitchError(429, "Rate limit exceeded")
                     
                 if response.status_code == 200:
                     await self.token_repository.update_last_used(token)
-                    logger.info("[Twitch Auth] Token validated successfully")
+                    logger.debug("[Twitch Auth] Token validated successfully")
                     return True
                 
             logger.warning(f"[Twitch Auth] Invalid token response: {response.status_code}")

@@ -22,6 +22,7 @@ class Settings(BaseSettings):
 
     # Application settings
     DEBUG: bool = False  # Default to False (secure default)
+    LOG_LEVEL: str = "INFO"
     # CORS settings
     ALLOWED_ORIGINS: list[str] = ["http://localhost:5173"]  # Default safe origin
 
