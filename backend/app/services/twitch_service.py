@@ -191,8 +191,7 @@ class TwitchService:
     async def _find_game(self, game_name: str, headers: dict) -> Optional[TwitchGame]:
         """Recherche un jeu sur Twitch."""
         try:
-            logger.warning(f"[Twitch API Request] GET /search/categories - Params: query={game_name}, first=1")
-            logger.warning(f"[Twitch API Request] Headers: {headers}")
+            logger.debug(f"[Twitch API] GET /search/categories - query={game_name}")
             
             response = await self.client.get(
                 f"{self.base_url}/search/categories",
@@ -200,8 +199,7 @@ class TwitchService:
                 headers=headers
             )
             
-            logger.warning(f"[Twitch API Response] Status: {response.status_code}")
-            logger.warning(f"[Twitch API Response] Body: {response.json()}")
+            logger.debug(f"[Twitch API] GET /search/categories - Status: {response.status_code}")
             
             response.raise_for_status()
             data = response.json()
@@ -236,8 +234,7 @@ class TwitchService:
             if cursor:
                 stream_params["after"] = cursor
 
-            logger.info(f"[Twitch API Request] GET /streams - Params: {stream_params}")
-            logger.info(f"[Twitch API Request] Headers: {headers}")
+            logger.debug(f"[Twitch API] GET /streams - Params: {stream_params}")
 
             stream_response = await self.client.get(
                 f"{self.base_url}/streams",
@@ -245,8 +242,7 @@ class TwitchService:
                 headers=headers
             )
             
-            logger.info(f"[Twitch API Response] Status: {stream_response.status_code}")
-            logger.info(f"[Twitch API Response] Body: {stream_response.json()}")
+            logger.debug(f"[Twitch API] GET /streams - Status: {stream_response.status_code}")
             
             stream_response.raise_for_status()
             stream_data = stream_response.json()
@@ -284,8 +280,7 @@ class TwitchService:
                     "type": "archive"
                 }
 
-                logger.info(f"[Twitch API Request] GET /videos - Params: {video_params}")
-                logger.info(f"[Twitch API Request] Headers: {headers}")
+                logger.debug(f"[Twitch API] GET /videos - Params: {video_params}")
 
                 video_response = await self.client.get(
                     f"{self.base_url}/videos",
@@ -293,8 +288,7 @@ class TwitchService:
                     headers=headers
                 )
                 
-                logger.info(f"[Twitch API Response] Status: {video_response.status_code}")
-                logger.info(f"[Twitch API Response] Body: {video_response.json()}")
+                logger.debug(f"[Twitch API] GET /videos - Status: {video_response.status_code}")
                 
                 video_response.raise_for_status()
                 video_data = video_response.json()
