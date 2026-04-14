@@ -30,6 +30,11 @@ class ProdSettings(Settings): # Inherit from base Settings
 
     # API_URL - should be the production API URL, loaded from .env via Settings
     # API_URL: str = os.getenv("API_URL", "http://localhost:8000") # Example
-    
+
     # FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173") # Example
+
+    # CORS settings
+    # Production: set ALLOWED_ORIGINS in .env to comma-separated list
+    # Example: ALLOWED_ORIGINS='["https://yourdomain.com","https://app.yourdomain.com"]'
+    ALLOWED_ORIGINS: list[str] = []  # Prod must explicitly set origins in .env
 

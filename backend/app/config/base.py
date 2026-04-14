@@ -22,6 +22,8 @@ class Settings(BaseSettings):
 
     # Application settings
     DEBUG: bool = False  # Default to False (secure default)
+    # CORS settings
+    ALLOWED_ORIGINS: list[str] = ["http://localhost:5173"]  # Default safe origin
 
     # Cache settings
     CACHE_TTL: int = 3600 # 1 hour default
