@@ -1,7 +1,4 @@
 from backend.app.config.base import Settings # Importer depuis le nouveau fichier base.py
-from typing import List
-import secrets
-import os
 
 class ProdSettings(Settings): # Inherit from base Settings
     # Environment
@@ -24,9 +21,8 @@ class ProdSettings(Settings): # Inherit from base Settings
     # REDIS_URL: str # Loaded from .env via Settings
     
     # Session settings
-    # SESSION_SECRET_KEY: str # Loaded from .env via Settings, should be strong
-    # Fallback to a new secret if not in .env, though .env is preferred for prod.
-    SESSION_SECRET_KEY: str = os.getenv("SESSION_SECRET_KEY", secrets.token_urlsafe(32))
+    # SESSION_SECRET_KEY is required from .env in production
+    # Do NOT fallback to secrets.token_urlsafe() - it will regenerate on each deploy
 
     # Cache settings - can be inherited or overridden
     # CACHE_TTL: int = 3600

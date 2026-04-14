@@ -1,6 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
-import secrets
 
 class Settings(BaseSettings):
     # Définir ici tous les paramètres de configuration communs à tous les environnements
@@ -19,7 +18,7 @@ class Settings(BaseSettings):
     REDIS_URL: str
 
     # Session settings
-    SESSION_SECRET_KEY: str = secrets.token_urlsafe(32) # Default with a random key
+    SESSION_SECRET_KEY: str  # Required from .env
 
     # Cache settings
     CACHE_TTL: int = 3600 # 1 hour default
