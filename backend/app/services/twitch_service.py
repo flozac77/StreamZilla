@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 
 from backend.app.config import settings
+from backend.app.database import mongodb
 from backend.app.models.twitch import TwitchUser, TwitchToken, TwitchVideo, TwitchGame, TwitchSearchResult
 from backend.app.repositories.token_repository import TokenRepository
 from backend.app.repositories.twitch_repository import TwitchRepository
@@ -23,7 +24,7 @@ class TwitchService:
         self.auth_url = "https://id.twitch.tv/oauth2"
         self.client_id = settings.TWITCH_CLIENT_ID
         self.auth_service = None
-        self.twitch_repository = TwitchRepository()
+        self.twitch_repository = TwitchRepository(mongodb.get_db())
         
         # Cache en mémoire pour les données fréquemment accédées
         self.memory_cache = TTLCache(
@@ -34,9 +35,7 @@ class TwitchService:
     async def _get_auth_service(self) -> TwitchAuthService:
         """Lazy initialization of auth service."""
         if not self.auth_service:
-            from backend.app.dependencies import get_db
-            db = await get_db()
-            token_repository = TokenRepository(db)
+            token_repository = TokenRepository(mongodb.get_db())
             self.auth_service = TwitchAuthService(token_repository)
         return self.auth_service
 

@@ -26,10 +26,11 @@ async def lifespan(app: FastAPI):
     # === Startup ===
     global scheduler
 
-    # Configuration du cache
+    from .database import mongodb
+    await mongodb.connect()
+
     await setup_cache()
 
-    # Initialisation du scheduler
     scheduler = CacheScheduler(cache_ttl=3600)
     await scheduler.start()
 
@@ -38,6 +39,7 @@ async def lifespan(app: FastAPI):
     # === Shutdown ===
     if scheduler:
         await scheduler.stop()
+    await mongodb.disconnect()
     logger.info("Application stopped")
 
 # Définition des valeurs pour FastAPI
