@@ -26,6 +26,9 @@ class DevSettings(Settings):  # Inherit from base Settings
     # API_URL - Specific dev override
     API_URL: str = "http://localhost:8000"
 
+    # CORS settings - Dev allows localhost frontend
+    ALLOWED_ORIGINS: list = ["http://localhost:5173"]
+
     # Cache settings will be inherited from Settings unless overridden here
     # CACHE_TTL: int = 3600
     # CACHE_MAX_SIZE: int = 1000
