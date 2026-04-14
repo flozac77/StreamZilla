@@ -114,3 +114,66 @@ def test_settings_init_does_not_log_secrets():
             "Config __init__.py must not print MONGODB_URL"
         assert 'REDIS_URL' not in content or 'print' not in content, \
             "Config __init__.py must not print REDIS_URL"
+def test_debug_false_in_prod():
+    """DEBUG must be False in production"""
+    with patch.dict(os.environ, {
+        "ENVIRONMENT": "prod",
+        "SESSION_SECRET_KEY": "test-secret",
+        "TWITCH_CLIENT_ID": "test-id",
+        "TWITCH_CLIENT_SECRET": "test-secret",
+        "TWITCH_REDIRECT_URI": "http://localhost:8000/callback",
+        "MONGODB_URL": "mongodb://test",
+        "REDIS_URL": "redis://test"
+    }):
+        from backend.app.config.prod import ProdSettings
+        settings = ProdSettings()
+        assert settings.DEBUG is False
+
+
+def test_debug_true_in_dev():
+    """DEBUG can be True in development"""
+    with patch.dict(os.environ, {
+        "ENVIRONMENT": "dev",
+        "SESSION_SECRET_KEY": "test-secret",
+        "TWITCH_CLIENT_ID": "test-id",
+        "TWITCH_CLIENT_SECRET": "test-secret",
+        "TWITCH_REDIRECT_URI": "http://localhost:8000/callback",
+        "MONGODB_URL": "mongodb://test",
+        "REDIS_URL": "redis://test"
+    }):
+        from backend.app.config.dev import DevSettings
+        settings = DevSettings()
+        assert settings.DEBUG is True
+def test_allowed_origins_is_list():
+    """ALLOWED_ORIGINS must be a list of specific origins"""
+    with patch.dict(os.environ, {
+        "SESSION_SECRET_KEY": "test-secret",
+        "TWITCH_CLIENT_ID": "test-id",
+        "TWITCH_CLIENT_SECRET": "test-secret",
+        "MONGODB_URL": "mongodb://test",
+        "REDIS_URL": "redis://test",
+        "ALLOWED_ORIGINS": '["http://localhost:5173","https://example.com"]'
+    }):
+        from backend.app.config.base import Settings
+        settings = Settings()
+        assert isinstance(settings.ALLOWED_ORIGINS, list)
+        assert "http://localhost:5173" in settings.ALLOWED_ORIGINS
+        assert "https://example.com" in settings.ALLOWED_ORIGINS
+        assert "*" not in settings.ALLOWED_ORIGINS
+
+
+def test_allowed_origins_default():
+    """ALLOWED_ORIGINS must have safe defaults per environment"""
+    with patch.dict(os.environ, {
+        "SESSION_SECRET_KEY": "test-secret",
+        "TWITCH_CLIENT_ID": "test-id",
+        "TWITCH_CLIENT_SECRET": "test-secret",
+        "MONGODB_URL": "mongodb://test",
+        "REDIS_URL": "redis://test",
+        "ENVIRONMENT": "dev"
+    }):
+        from backend.app.config.dev import DevSettings
+        settings = DevSettings()
+        # Dev should have localhost
+        assert "http://localhost:5173" in settings.ALLOWED_ORIGINS
+        assert "*" not in settings.ALLOWED_ORIGINS

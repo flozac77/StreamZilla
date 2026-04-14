@@ -60,20 +60,20 @@ app = FastAPI(
     title=PROJECT_NAME,
     description="API pour la gestion des vidéos Twitch",
     version="1.0.0",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
-    openapi_url=f"{API_V1_STR}/openapi.json",
+    docs_url="/api/docs" if settings.DEBUG else None,
+    redoc_url="/api/redoc" if settings.DEBUG else None,
+    openapi_url=f"{API_V1_STR}/openapi.json" if settings.DEBUG else None,
     lifespan=lifespan,
-    debug=True
+    debug=settings.DEBUG
 )
 
 # Configuration CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # Session middleware
