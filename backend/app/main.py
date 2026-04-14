@@ -1,7 +1,5 @@
 import logging
 from contextlib import asynccontextmanager
-from motor.motor_asyncio import AsyncIOMotorClient
-import sys
 # FastAPI imports
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,31 +23,22 @@ scheduler = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # === Startup ===
     global scheduler
-    
+
     # Configuration du cache
     await setup_cache()
-    
-    # Initialisation du scheduler
-    scheduler = CacheScheduler(cache_ttl=3600)  # 1 heure
-    await scheduler.start()
-    
-    logger.warning("Application démarrée avec succès")  # Changé en WARNING
-    yield
 
-    client = AsyncIOMotorClient(settings.MONGODB_URL)
-    try:
-        await client[settings.MONGODB_DB_NAME].command("ping")
-        logger.warning("✅ MongoDB Atlas ping OK from Vercel")  # Changé en WARNING
-    except Exception as e:
-        logger.error(f"❌ MongoDB Atlas ping failed from Vercel: {e}")
+    # Initialisation du scheduler
+    scheduler = CacheScheduler(cache_ttl=3600)
+    await scheduler.start()
+
+    logger.info("Application started")
     yield
-    
-    # Shutdown
+    # === Shutdown ===
     if scheduler:
         await scheduler.stop()
-        logger.warning("Application arrêtée avec succès")  # Changé en WARNING
+    logger.info("Application stopped")
 
 # Définition des valeurs pour FastAPI
 PROJECT_NAME = "VisioBrain API"
@@ -94,6 +83,11 @@ app.include_router(auth_router)
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
+
+
+@app.get("/api/health")
+async def health():
+    return {"status": "ok"}
 
 if __name__ == "__main__":
     import uvicorn
