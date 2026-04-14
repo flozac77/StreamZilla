@@ -103,6 +103,36 @@ def test_session_secret_key_can_be_provided(tmp_path):
         os.chdir(original_cwd)
 
 
+def test_debug_false_in_prod():
+    """DEBUG must be False in production"""
+    with patch.dict(os.environ, {
+        "ENVIRONMENT": "prod",
+        "SESSION_SECRET_KEY": "test-secret",
+        "TWITCH_CLIENT_ID": "test-id",
+        "TWITCH_CLIENT_SECRET": "test-secret",
+        "TWITCH_REDIRECT_URI": "http://localhost:8000/callback",
+        "MONGODB_URL": "mongodb://test",
+        "REDIS_URL": "redis://test"
+    }):
+        from backend.app.config.prod import ProdSettings
+        settings = ProdSettings()
+        assert settings.DEBUG is False
+
+
+def test_debug_true_in_dev():
+    """DEBUG can be True in development"""
+    with patch.dict(os.environ, {
+        "ENVIRONMENT": "dev",
+        "SESSION_SECRET_KEY": "test-secret",
+        "TWITCH_CLIENT_ID": "test-id",
+        "TWITCH_CLIENT_SECRET": "test-secret",
+        "TWITCH_REDIRECT_URI": "http://localhost:8000/callback",
+        "MONGODB_URL": "mongodb://test",
+        "REDIS_URL": "redis://test"
+    }):
+        from backend.app.config.dev import DevSettings
+        settings = DevSettings()
+        assert settings.DEBUG is True
 def test_allowed_origins_is_list():
     """ALLOWED_ORIGINS must be a list of specific origins"""
     with patch.dict(os.environ, {

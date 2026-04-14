@@ -60,11 +60,11 @@ app = FastAPI(
     title=PROJECT_NAME,
     description="API pour la gestion des vidéos Twitch",
     version="1.0.0",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
-    openapi_url=f"{API_V1_STR}/openapi.json",
+    docs_url="/api/docs" if settings.DEBUG else None,
+    redoc_url="/api/redoc" if settings.DEBUG else None,
+    openapi_url=f"{API_V1_STR}/openapi.json" if settings.DEBUG else None,
     lifespan=lifespan,
-    debug=True
+    debug=settings.DEBUG
 )
 
 # Configuration CORS

@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     # Session settings
     SESSION_SECRET_KEY: str  # Required from .env
 
+    # Application settings
+    DEBUG: bool = False  # Default to False (secure default)
     # CORS settings
     ALLOWED_ORIGINS: list[str] = ["http://localhost:5173"]  # Default safe origin
 
