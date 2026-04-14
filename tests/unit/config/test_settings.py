@@ -101,3 +101,16 @@ def test_session_secret_key_can_be_provided(tmp_path):
         assert settings.SESSION_SECRET_KEY == test_secret
     finally:
         os.chdir(original_cwd)
+
+
+def test_settings_init_does_not_log_secrets():
+    """Settings initialization must not print secrets to stdout"""
+    with open('/srv/13Perso_projet/StreamZilla/backend/app/config/__init__.py', 'r') as f:
+        content = f.read()
+        # Should not contain print statements that output sensitive values
+        assert 'TWITCH_CLIENT_ID' not in content or 'print' not in content, \
+            "Config __init__.py must not print TWITCH_CLIENT_ID"
+        assert 'MONGODB_URL' not in content or 'print' not in content, \
+            "Config __init__.py must not print MONGODB_URL"
+        assert 'REDIS_URL' not in content or 'print' not in content, \
+            "Config __init__.py must not print REDIS_URL"
